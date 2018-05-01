@@ -1,0 +1,7 @@
+
+2 * PI * R / V == T == t == 2 * PI * r / v
+r == R / SCALE
+v == V / SCALE
+a == v * v / r == V * V / (R * SCALE) == A / SCALE
+
+a = G * m / r * r
