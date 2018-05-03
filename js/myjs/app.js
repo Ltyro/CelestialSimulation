@@ -26,8 +26,23 @@ var windowHalfX = window.innerWidth / 2;
 var windowHalfY = window.innerHeight / 2;
 
 document.addEventListener( 'mousemove', onDocumentMouseMove, false );
-
-ENABLE_POINT_CPU ? pc_init() : init();
+var RUN = {
+	normal: {
+		init: init,
+		render: render
+	},
+	points_cpu: {
+		init: pc_init,
+		render: pc_render
+	},
+	bhtree: {
+		init: bh_init,
+		render: bh_render
+	}
+}
+var mode = 'bhtree'
+commonInit()
+RUN[mode].init()
 animate();
 function commonInit() {
 	container = document.createElement( 'div' );
@@ -169,10 +184,7 @@ function planetMove(delta, i) {
 	// }
 	
 }
-function init() {
-	commonInit();
-	// initSun()
-	// initPlanet() //earth
+function initCelebodies() {
 	var cbs = [];
 	var mass = 10000
 	var planettx = txloader.load('resource/textures/planets/earth.jpg')
@@ -191,7 +203,16 @@ function init() {
 			cbs.push(cb);
 		}
 	}
+
+	addCelebody(cbs);
 	document.getElementById('ptotalnum').innerText = WIDTH * HEIGHT;
+}
+
+function init() {
+	
+	// initSun()
+	// initPlanet() //earth
+	initCelebodies()
 	// sun
 	// var v = new Float32Array([0.0876, 0.00145, -0.268]);
 	// var pos = new Float32Array([49400, 798, -156345]);
@@ -206,7 +227,7 @@ function init() {
 	// cb.mesh.material = mat
 	// cbs.push(cb);
 
-	addCelebody(cbs); 
+	 
 	calcu_E(celebodies);
 	document.getElementById('pnum').innerText = celebodies.length;
 	t_start = new Date();
@@ -251,15 +272,20 @@ function calcu_a(celebodies) {
 	}
 }
 
-function computeAcceleOf2(G, c1, c2, cpta2) {
-	var a1 = null, a2 = null, 
+function computeAcceleOf2(G, c1, c2, doboth) {
+	var m1 = c1.m, m2 = c2.m, 
 		p1 = c1.position, p2 = c2.position;
+	return computeAcceleOf2directly(G, m1, p1, m2, p2, doboth)
+}
+
+function computeAcceleOf2directly(G, m1, p1, m2, p2, doboth) {
+	var a1 = null, a2 = null
 
 	var dif_x = p2[0]-p1[0], dif_y = p2[1]-p1[1], dif_z = p2[2]-p1[2];
 	var sq_dis = dif_x*dif_x+dif_y*dif_y+dif_z*dif_z;// 距离平方
 	var GdivsqDis = G / sq_dis
 	var dis = Math.sqrt(sq_dis);
-	var a1_scalar = GdivsqDis * c2.m;
+	var a1_scalar = GdivsqDis * m2;
 	
 	var normal_x = dif_x/dis, normal_y = dif_y/dis, normal_z = dif_z/dis;
 	if(cb.r + cbj.r > dis){
@@ -267,10 +293,10 @@ function computeAcceleOf2(G, c1, c2, cpta2) {
 		// dropCB(cb);
 		// dropCB(cbj);
 	}
-	a1 = [a1_scalar*normal_x, a_scalar*normal_y, a_scalar*normal_z]
-	if(cpta2 === true) {
-		var a2_scalar = GdivsqDis * c1.m;
-		a2 = [-a2_scalar*normal_x, a_scalar*normal_y, a_scalar*normal_z]
+	a1 = new Float32Array([a1_scalar*normal_x, a_scalar*normal_y, a_scalar*normal_z])
+	if(doboth === true) {
+		var a2_scalar = GdivsqDis * m1;
+		a2 = new Float32Array([-a2_scalar*normal_x, a_scalar*normal_y, a_scalar*normal_z])
 	}
 	return {
 		a1: a1,
@@ -331,7 +357,7 @@ function animate() {
 
 	requestAnimationFrame( animate );
 	stats.update();
-	ENABLE_POINT_CPU ? pc_render() : render();
+	RUN[mode].render();
 
 }
 // 系统机械能
@@ -351,9 +377,13 @@ function calcu_E(cbs) {
 	console.log('系统机械能：' + E.toFixed(2) + 'J');
 	return E;
 }
+
 // 2间天体距离
 function disOf2cb(cb1, cb2) {
 	var p1 = cb1.position, p2 = cb2.position;
+	return disOf2p(p1, p2)
+}
+function disOf2p(p1, p2) {
 	var dx = p1[0] - p2[0], dy = p1[1] - p2[1], dz = p1[2] - p2[2];
 	var dis = Math.sqrt(dx * dx + dy * dy + dz * dz);
 	return dis;

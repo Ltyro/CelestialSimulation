@@ -1,6 +1,6 @@
 var ENABLE_POINT_CPU = true
 function pc_init() {
-	commonInit();
+	
 	var mass = 100000
 	var WIDTH = 10, HEIGHT = 10, n = WIDTH * HEIGHT, posR = 5000, randomVel = 30;
 	var geometry = new THREE.Geometry();
