@@ -1,33 +1,41 @@
-var bhtree, BN_THETA = 0.5;
-
+var bhtree, BN_THETA = 1;
+var farest = 0
 function BHTree(r, x, y, z) {
 	var x = x || 0, 
 		y = y || 0, 
 		z = z || 0, 
-		half = r || 50000
+		half = r || 20000
 	var bounds = new Bounds3(x, y, z, half)
 	this.root = new TreeNode(bounds)
 }
 
 BHTree.prototype.buildTree = function(array) {
-	this.destroy()
-	
-	this.root.insert(array)
-
+	this.reset()
+	for(var i = 0; i < array.length; i ++) {
+		this.root.insert(i, array, 0)
+	}
 }
 
 BHTree.prototype.destroy = function() {
-	this.root = null
-	// this.curDeleteNode(this.root)
+	// this.root = null
+	if(this.root)
+		this.root = this.curDeleteNode(this.root)
+}
+
+BHTree.prototype.reset = function() {
+	this.destroy()
+	var bounds = new Bounds3(0, 0, 0, 20000)
+	this.root = new TreeNode(bounds)
 }
 
 BHTree.prototype.curDeleteNode = function(node) {
-	if(node.q[0]) {
-		for(var i = 0; i < node.q.length; i ++)
-			this.curDeleteNode(q[i])
+	node.items = node.bounds = null
+	for(var i = 0; i < 8; i ++) {
+		if(node.q[i])
+			node.q[i] = this.curDeleteNode(node.q[i])
+		
 	}
-	node.items = null
-	node = null
+	return null
 }
 
 BHTree.prototype.printTree = function() {
@@ -35,6 +43,29 @@ BHTree.prototype.printTree = function() {
 }
 
 // BHTree.prototype.
+function initCelebodies() {
+	var cbs = [];
+	var mass = 1e6
+	var planettx = txloader.load('resource/textures/planets/earth.jpg')
+	var mat = new THREE.MeshLambertMaterial({
+					map: planettx,
+					overdraw: 0.5 
+				})
+
+	n = WIDTH * HEIGHT, posR = 5000, randomVel = 10;
+	for(var i = 0; i < WIDTH; i ++) {
+		for(var j = 0; j < HEIGHT; j ++) {
+			var v = new Float32Array([randomVel*(Math.random()-0.5), randomVel*(Math.random()-0.5), randomVel*(Math.random()-0.5)]);
+			var pos = new Float32Array([posR*(Math.random()-0.5), posR*(Math.random()-0.5), posR*(Math.random()-0.5)]);
+			var cb = new Celebody(i*100+j, mass, v, pos);
+			cb.mesh.material = mat
+			cbs.push(cb);
+		}
+	}
+
+	addCelebody(cbs);
+	document.getElementById('ptotalnum').innerText = WIDTH * HEIGHT;
+}
 
 function bh_init() {
 
@@ -52,7 +83,7 @@ function bh_render() {
 		for(var i = 0; i < dn; i ++) {
 			if(true)
 				bh_planetsMove(ddn /** 20000*/)
-			// planetMove(interval * 200000, i)
+			
 		}
 	if((~~((new Date() - t_start) / 1000)%3) == 0) {
 		calcu_E(celebodies)
@@ -87,7 +118,7 @@ function doBHtreeRecurse(bI, node) {
 				
 				var result_a = computeAcceleOf2(G, celebodies[bI], 
 					celebodies[nodeids[k]], false)
-				celebodies[bI].a = result_a.a1
+				addToVector3(celebodies[bI].a, result_a.a1)
 			}
 		}
 	} else {

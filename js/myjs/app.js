@@ -25,7 +25,8 @@ var mouseX = 0, mouseY = 0;
 var windowHalfX = window.innerWidth / 2;
 var windowHalfY = window.innerHeight / 2;
 
-document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+var WIDTH = 10, HEIGHT = 10
+
 var RUN = {
 	normal: {
 		init: init,
@@ -44,53 +45,7 @@ var mode = 'bhtree'
 commonInit()
 RUN[mode].init()
 animate();
-function commonInit() {
-	container = document.createElement( 'div' );
-	document.body.appendChild( container );
 
-	camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 100000 );
-	camera.position.z = 100;
-	// camera.position.y = 12;
-	clock = new THREE.Clock()
-	scene = new THREE.Scene();
-	scene.background = new THREE.CubeTextureLoader()
-		.setPath( 'resource/textures/cube/MilkyWay/' )
-		.load( [ 'dark-s_px.jpg', 
-				'dark-s_nx.jpg', 
-				'dark-s_py.jpg', 
-				'dark-s_ny.jpg', 
-				'dark-s_pz.jpg', 
-				'dark-s_nz.jpg' ] );
-	scene.add(new THREE.AmbientLight(0xffffff, 0.4))
-
-	renderer = new THREE.WebGLRenderer();
-	renderer.setPixelRatio( window.devicePixelRatio );
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	container.appendChild( renderer.domElement );
-	orbitControls = new THREE.OrbitControls(camera, renderer.domElement)
-
-	renderer.autoClear = false;
-
-	txloader = new THREE.TextureLoader()
-	stats = new Stats();
-	container.appendChild(stats.dom);
-	//
-
-	var renderModel = new THREE.RenderPass( scene, camera );
-	var effectBloom = new THREE.BloomPass( 1.25 );
-	var effectFilm = new THREE.FilmPass( 0.35, 0.95, 2048, false );
-
-	effectFilm.renderToScreen = true;
-
-	composer = new THREE.EffectComposer( renderer );
-
-	composer.addPass( renderModel );
-	composer.addPass( effectBloom );
-	composer.addPass( effectFilm );
-	//
-
-	window.addEventListener( 'resize', onWindowResize, false );
-}
 function initSun() {
 	var size = 0.65;
 	var sungeo = new THREE.SphereBufferGeometry( size, 30, 30 )//new THREE.SphereBufferGeometry( 20, 20, 20 )
@@ -184,29 +139,7 @@ function planetMove(delta, i) {
 	// }
 	
 }
-function initCelebodies() {
-	var cbs = [];
-	var mass = 10000
-	var planettx = txloader.load('resource/textures/planets/earth.jpg')
-	var mat = new THREE.MeshLambertMaterial({
-					map: planettx,
-					overdraw: 0.5 
-				})
 
-	var WIDTH = 16, HEIGHT = 16, n = WIDTH * HEIGHT, posR = 5000, randomVel = 30;
-	for(var i = 0; i < WIDTH; i ++) {
-		for(var j = 0; j < HEIGHT; j ++) {
-			var v = new Float32Array([randomVel*(Math.random()-0.5), randomVel*(Math.random()-0.5), randomVel*(Math.random()-0.5)]);
-			var pos = new Float32Array([posR*(Math.random()-0.5), posR*(Math.random()-0.5), posR*(Math.random()-0.5)]);
-			var cb = new Celebody(i*100+j, mass, v, pos);
-			cb.mesh.material = mat
-			cbs.push(cb);
-		}
-	}
-
-	addCelebody(cbs);
-	document.getElementById('ptotalnum').innerText = WIDTH * HEIGHT;
-}
 
 function init() {
 	
@@ -234,14 +167,14 @@ function init() {
 	
 }
 
-function planetsMove(celebodies, interval) {
+function planetsMove(/*celebodies, */interval) {
 	// 先计算加速度a，再计算位移后位置position，最后算速度v
-	calcu_a(celebodies);
-	calcu_p(celebodies, interval);
-	calcu_v(celebodies, interval);
+	calcu_a(/*celebodies*/);
+	calcu_p(/*celebodies, */interval);
+	calcu_v(/*celebodies, */interval);
 }
 
-function calcu_a(celebodies) {
+function calcu_a(/*celebodies*/) {
 	var cbs = celebodies;
 	for(var i = 0; i < cbs.length; i ++) {
 		var cb = cbs[i], cbp = cb.position, a_byothers = [], a = new Float32Array([0, 0, 0]);
@@ -288,12 +221,12 @@ function computeAcceleOf2directly(G, m1, p1, m2, p2, doboth) {
 	var a1_scalar = GdivsqDis * m2;
 	
 	var normal_x = dif_x/dis, normal_y = dif_y/dis, normal_z = dif_z/dis;
-	if(cb.r + cbj.r > dis){
+	// if(cb.r + cbj.r > dis){
 		// aggregate(cb,  cbj);
 		// dropCB(cb);
 		// dropCB(cbj);
-	}
-	a1 = new Float32Array([a1_scalar*normal_x, a_scalar*normal_y, a_scalar*normal_z])
+	// }
+	a1 = new Float32Array([a1_scalar*normal_x, a1_scalar*normal_y, a1_scalar*normal_z])
 	if(doboth === true) {
 		var a2_scalar = GdivsqDis * m1;
 		a2 = new Float32Array([-a2_scalar*normal_x, a_scalar*normal_y, a_scalar*normal_z])
@@ -304,7 +237,7 @@ function computeAcceleOf2directly(G, m1, p1, m2, p2, doboth) {
 	}
 }
 
-function calcu_p(celebodies, interval) {
+function calcu_p(/*celebodies, */interval) {
 	var cbs = celebodies, t = interval;
 	for(var i = 0; i < cbs.length; i ++) {
 		var p = cbs[i].position, v = cbs[i].v;
@@ -322,7 +255,7 @@ function calcu_p(celebodies, interval) {
 	// }
 	// console.log(celebodies[0].position[1])
 }
-function calcu_v(celebodies, interval) {
+function calcu_v(/*celebodies, */interval) {
 	var cbs = celebodies, t = interval;
 	for(var i = 0; i < cbs.length; i ++) {
 		var v = cbs[i].v, a = cbs[i].a;
@@ -342,7 +275,7 @@ function render() {
 	if(ddn)
 		for(var i = 0; i < dn; i ++) { 
 			if(move_flag)
-				planetsMove(celebodies, ddn );
+				planetsMove(/*celebodies, */ddn );
 			// planetMove(interval * 200000, i)
 		}
 	
@@ -439,9 +372,62 @@ function onWindowResize() {
 
 }
 
+function addToVector3(v1, v2) {
+	v1[0] += v2[0]
+	v1[1] += v2[1]
+	v1[2] += v2[2]
+}
 function onDocumentMouseMove(event) {
 
 	mouseX = ( event.clientX - windowHalfX ) * 10;
 	mouseY = ( event.clientY - windowHalfY ) * 10;
 
+}
+function commonInit() {
+	container = document.createElement( 'div' );
+	document.body.appendChild( container );
+
+	camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 100000 );
+	camera.position.z = 100;
+	// camera.position.y = 12;
+	clock = new THREE.Clock()
+	scene = new THREE.Scene();
+	scene.background = new THREE.CubeTextureLoader()
+		.setPath( 'resource/textures/cube/MilkyWay/' )
+		.load( [ 'dark-s_px.jpg', 
+				'dark-s_nx.jpg', 
+				'dark-s_py.jpg', 
+				'dark-s_ny.jpg', 
+				'dark-s_pz.jpg', 
+				'dark-s_nz.jpg' ] );
+	scene.add(new THREE.AmbientLight(0xffffff, 0.4))
+
+	renderer = new THREE.WebGLRenderer();
+	renderer.setPixelRatio( window.devicePixelRatio );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	container.appendChild( renderer.domElement );
+	orbitControls = new THREE.OrbitControls(camera, renderer.domElement)
+
+	renderer.autoClear = false;
+
+	txloader = new THREE.TextureLoader()
+	stats = new Stats();
+	container.appendChild(stats.dom);
+	//
+
+	var renderModel = new THREE.RenderPass( scene, camera );
+	var effectBloom = new THREE.BloomPass( 1.25 );
+	var effectFilm = new THREE.FilmPass( 0.35, 0.95, 2048, false );
+
+	effectFilm.renderToScreen = true;
+
+	composer = new THREE.EffectComposer( renderer );
+
+	composer.addPass( renderModel );
+	composer.addPass( effectBloom );
+	composer.addPass( effectFilm );
+	//
+
+	window.addEventListener( 'resize', onWindowResize, false );
+	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 }
