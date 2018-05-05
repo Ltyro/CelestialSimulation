@@ -1,2 +1,2 @@
 # CelestialSimulation
-BH simulation, still coding
+BH algorithm simulation, still coding
