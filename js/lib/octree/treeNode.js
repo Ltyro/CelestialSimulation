@@ -10,10 +10,12 @@ function TreeNode(bounds) {
         this.q[i] = null;
     }
     this.items = null;
+    this.parent = null
 }
 
 
 TreeNode.prototype.getSubNode = function(cb) {
+    var that = this
     var p = cb.position
     var bounds = this.bounds, quarter = bounds.half / 2;
     var quadIdx = 0; // assume NW
@@ -37,7 +39,9 @@ TreeNode.prototype.getSubNode = function(cb) {
                         bounds.z + fz * quarter, 
                         quarter
                     )
-        this.q[quadIdx] = new TreeNode(bounds)
+        var child = new TreeNode(bounds)
+        child.parent = that
+        this.q[quadIdx] = child
     }
     
     return this.q[quadIdx]

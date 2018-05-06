@@ -73,6 +73,7 @@ function bh_init() {
 
 	bhtree = new BHTree()
 	bhtree.buildTree(celebodies)
+	// doBHtreeIter(0, bhtree.root)
 }
 
 function bh_render() {
@@ -93,22 +94,27 @@ function bh_render() {
 }
 
 function bh_planetsMove(dt) {
-
+	// console.time('bh_computeA');
 	bh_computeA()
+	// console.timeEnd('bh_computeA');
 	calcu_p(dt)
 	calcu_v(dt)
 
 }
 
 function bh_computeA() {
+	// console.time('build')
 	bhtree.buildTree(celebodies)
-
+	// console.timeEnd('build');
+	// console.time('computeA');
 	for (var i = 0; i < celebodies.length; i++) {
 		// For each body
-		doBHtreeRecurse(i, bhtree.root)
+		// doBHtreeRecurse(i, bhtree.root)
+		doBHtreeIter(i, bhtree.root)
 	}
+	// console.timeEnd('computeA');
 }
-
+// recursion
 function doBHtreeRecurse(bI, node) {
 	var nodeids = node.items.ids
 	if (node.isLeaf()) {
@@ -122,13 +128,13 @@ function doBHtreeRecurse(bI, node) {
 			}
 		}
 	} else {
-		var s = 2 * node.bounds.harf
+		var s = 2 * node.bounds.half
 		var d = disOf2p(celebodies[bI].position, node.items.CoM)
 		if (s / d < BN_THETA) {
 			var m1 = celebodies[bI].m, p1 = celebodies[bI].position,
 				m2 = node.items.mass, p2 = node.items.CoM
 			var result_a = computeAcceleOf2directly(G, m1, p1, m2, p2, false)
-			celebodies[bI].a = result_a.a1
+			addToVector3(celebodies[bI].a, result_a.a1)
 			
 		} else {
 			// Recurse for each child
@@ -138,5 +144,56 @@ function doBHtreeRecurse(bI, node) {
 				}
 			}
 		}
+	}
+}
+
+//iteration
+function doBHtreeIter(bI, node) {
+	if(node == null)
+		return
+	var stack = []
+	var nodeids = node.items.ids
+	var index = 0, length = 7
+	while(node || stack.length != 0 || index <= length) {
+		
+		while(node != null) {
+			// do sth
+			if(node.isLeaf()) {
+				// If node is a leaf node
+				for (var k = 0; k < nodeids.length; k++) {
+					if (bI != nodeids[k]) { // Skip self
+						
+						var result_a = computeAcceleOf2(G, celebodies[bI], 
+							celebodies[nodeids[k]], false)
+						addToVector3(celebodies[bI].a, result_a.a1)
+					}
+				}
+			} else {
+				var s = 2 * node.bounds.half
+				var d = disOf2p(celebodies[bI].position, node.items.CoM)
+				if (s / d < BN_THETA) {
+					var m1 = celebodies[bI].m, p1 = celebodies[bI].position,
+						m2 = node.items.mass, p2 = node.items.CoM
+					var result_a = computeAcceleOf2directly(G, m1, p1, m2, p2, false)
+					addToVector3(celebodies[bI].a, result_a.a1)
+					break
+				} 
+			}
+			// console.log(node.items)
+
+			stack.push(node)
+			index = 0
+			node = node.q[index]
+		}
+		while(index == length) {
+			node = stack.pop()
+			if(!node.parent)
+				return
+			index = node.parent.q.indexOf(node)
+			
+		}
+		node = stack[stack.length - 1]
+
+		node = node.q[++index]
 	}
 }

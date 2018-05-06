@@ -41,7 +41,7 @@ var RUN = {
 		render: bh_render
 	}
 }
-var mode = 'bhtree'
+var mode = 'normal'
 commonInit()
 RUN[mode].init()
 animate();
@@ -169,7 +169,9 @@ function init() {
 
 function planetsMove(/*celebodies, */interval) {
 	// 先计算加速度a，再计算位移后位置position，最后算速度v
+	// console.time('nm_computeA');
 	calcu_a(/*celebodies*/);
+	// console.timeEnd('nm_computeA');
 	calcu_p(/*celebodies, */interval);
 	calcu_v(/*celebodies, */interval);
 }
