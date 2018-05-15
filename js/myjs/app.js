@@ -39,9 +39,13 @@ var RUN = {
 	bhtree: {
 		init: bh_init,
 		render: bh_render
+	},
+	aot: {
+		init: aot_init,
+		render: aot_render
 	}
 }
-var mode = 'normal'
+var mode = 'bhtree'
 commonInit()
 RUN[mode].init()
 animate();
@@ -183,7 +187,6 @@ function calcu_a(/*celebodies*/) {
 		for(var j = 0; j < cbs.length; j ++) {
 			if(i == j)
 				continue;
-			
 			var cbj = cbs[j], cbpj = cbj.position;
 			var dif_x = cbpj[0]-cbp[0], dif_y = cbpj[1]-cbp[1], dif_z = cbpj[2]-cbp[2];
 			var sq_dis = dif_x*dif_x+dif_y*dif_y+dif_z*dif_z;// 距离平方
@@ -269,7 +272,7 @@ function render() {
 	var interval = clock.getDelta();
 	orbitControls.update();
 
-	renderer.render( scene, camera );
+	// renderer.render( scene, camera );
 	if(uniforms)
 		uniforms.time.value += interval;
 	var dn = 10, ddn = interval / dn;
@@ -281,11 +284,11 @@ function render() {
 			// planetMove(interval * 200000, i)
 		}
 	
-	if((~~((new Date() - t_start) / 1000)%3) == 0) {
-		calcu_E(celebodies)
-	}
+	// if((~~((new Date() - t_start) / 1000)%3) == 0) {
+	// 	calcu_E(celebodies)
+	// }
 	renderer.clear();
-	composer.render( 0.01 );
+	// composer.render( 0.01 );
 }
 
 function animate() {
@@ -429,7 +432,7 @@ function commonInit() {
 	composer.addPass( effectBloom );
 	composer.addPass( effectFilm );
 	//
-
+	document.getElementById('mode').innerText = mode;
 	window.addEventListener( 'resize', onWindowResize, false );
 	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 }

@@ -1,4 +1,4 @@
-var bhtree, BN_THETA = 1;
+var bhtree, BH_THETA = 1;
 var farest = 0
 function BHTree(r, x, y, z) {
 	var x = x || 0, 
@@ -77,6 +77,7 @@ function bh_init() {
 }
 
 function bh_render() {
+	orbitControls.update()
 	var interval = clock.getDelta()
 	var dn = 10, ddn = interval / dn
 	//planet
@@ -86,10 +87,10 @@ function bh_render() {
 				bh_planetsMove(ddn /** 20000*/)
 			
 		}
+
 	if((~~((new Date() - t_start) / 1000)%3) == 0) {
 		calcu_E(celebodies)
 	}
-	orbitControls.update()
 	renderer.render( scene, camera )
 }
 
@@ -152,7 +153,7 @@ function doBHtreeIter(bI, node) {
 	if(node == null)
 		return
 	var stack = []
-	var nodeids = node.items.ids
+	
 	var index = 0, length = 7
 	while(node || stack.length != 0 || index <= length) {
 		
@@ -160,18 +161,20 @@ function doBHtreeIter(bI, node) {
 			// do sth
 			if(node.isLeaf()) {
 				// If node is a leaf node
+				var nodeids = node.items.ids 
 				for (var k = 0; k < nodeids.length; k++) {
 					if (bI != nodeids[k]) { // Skip self
-						
+						// console.time('oneParticle');
 						var result_a = computeAcceleOf2(G, celebodies[bI], 
 							celebodies[nodeids[k]], false)
+						// console.timeEnd('oneParticle');
 						addToVector3(celebodies[bI].a, result_a.a1)
 					}
 				}
 			} else {
 				var s = 2 * node.bounds.half
 				var d = disOf2p(celebodies[bI].position, node.items.CoM)
-				if (s / d < BN_THETA) {
+				if (s / d < BH_THETA) {
 					var m1 = celebodies[bI].m, p1 = celebodies[bI].position,
 						m2 = node.items.mass, p2 = node.items.CoM
 					var result_a = computeAcceleOf2directly(G, m1, p1, m2, p2, false)
