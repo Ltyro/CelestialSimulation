@@ -245,8 +245,8 @@
 						break;
 					indexEntry = Pop(stack);
 					index = indexEntry.data;
-					
-					// sibIndex = index % 8.0;
+					// float rr = 19.0 - floor(19.0 / 8.0) * 8.0;
+					sibIndex = index - floor(index / 8.0) * 8.0;
 				}
 				// 下一个兄弟节点
 				indexEntry = getTop(stack);
@@ -269,7 +269,7 @@
 			
 			r = vec4(computeA(), 0.0);
 			// r = texture2D(velTexture, vec2(0.0, 0.0));
-			
+			// test mod
 			
 			r /= scale;
 			return r;
