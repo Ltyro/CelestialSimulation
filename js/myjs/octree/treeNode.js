@@ -1,5 +1,5 @@
 // var Bounds3 = require('./bounds3.js');
-var MAX_ITEMS = 4, MAX_DEPTH = 16;
+var MAX_ITEMS = 3, MAX_DEPTH = 16;
 if(typeof(module) != 'undefined')
     module.exports = TreeNode;
 

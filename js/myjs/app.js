@@ -39,10 +39,6 @@ var RUN = {
 	bhtree: {
 		init: bh_init,
 		render: bh_render
-	},
-	aot: {
-		init: aot_init,
-		render: aot_render
 	}
 }
 var mode = 'bhtree'
