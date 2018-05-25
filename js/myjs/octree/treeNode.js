@@ -9,6 +9,7 @@ function TreeNode(bounds) {
     for(var i = 0; i < 8 ; i ++) {
         this.q[i] = null;
     }
+    // this.sibIndex = null
     this.items = null;
     this.parent = null
 }
