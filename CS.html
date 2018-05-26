@@ -71,15 +71,22 @@
 		#define nodesNum 73
 		#define MAXLEVEL 5
 		#define MAX_STACK_SIZE 8
+		#define BH_THETA 1.0
+		#define G 6.67e-11
 		// #define c 0// current node index
 		// global varies
 		int lastLevelIndex = 9;
+		const float NLEAF = 1.0;
+		const float NNODE = 0.0;
+		const float NNULL = -1.0;
+		const float maxSib = 8.0;
 		const int celebodyNum = 1;
 		vec4 scale = vec4(255.0, 255.0, 255.0, 255.0);
 
 		varying vec2 vUv;
-
 		uniform float resolution;
+		// uniform float G;
+		uniform float pNum;
 		uniform float nodeNum;
 		// uniform sampler2D tree;
 		uniform sampler2D posTexture;
@@ -88,7 +95,10 @@
 		uniform sampler2D boundTex;
 		uniform sampler2D CMTex;
 		uniform sampler2D typeTex;
-
+		vec3 pos;
+		vec3 vel;
+		float count = 0.0;
+		float mass;
 		struct Celebody {
 			vec3 pos; // position
 			vec3 vel; // velocity
@@ -196,21 +206,71 @@
 
 		void init() {
 			
-			for(int i = 0; i < nodesNum; i ++) {
-				bhTree[i].isLeaf = 1;
+			// for(int i = 0; i < nodesNum; i ++) {
+			// 	bhTree[i].isLeaf = 1;
+			// }
+			pos = texture2D(posTexture, vUv).xyz;
+			// vec4 vm = texture2D(velTexture, vUv);
+			// vel = vm.xyz;
+			// mass = vm.a;
+			
+		}
+		void computeAOf2(inout vec3 a, vec3 pos2, float mass2) {
+			vec3 dPos = pos2 - pos;
+			float distance = length( dPos );
+			float distanceSq = distance * distance;// dot(dPos, dPos);
+
+			a += G * mass2 / distanceSq * normalize( dPos );
+			// count++;
+		}
+
+		bool handle(float index, inout vec3 a, vec4 nodeType) {
+			// count+=1.0;
+			vec4 cm = texture2D(CMTex, vec2(0.0, (index + 0.5) / nodeNum));
+			vec3 pos2;
+			float mass2;
+			if(nodeType.a == NLEAF) {
+				float pi;
+				if(nodeType.x != -1.0 && (nodeType.x+0.5)/pNum != vUv.y) {
+					pi = nodeType.x;
+					pos2 = texture2D(posTexture, vec2(0.0, (pi+0.5)/pNum)).xyz;
+					mass2 = texture2D(velTexture, vec2(0.0, (pi+0.5)/pNum)).a;
+					
+					computeAOf2(a, pos2, mass2);
+					
+				}
+				if(nodeType.y != -1.0 && (nodeType.y+0.5)/pNum != vUv.y) {
+					pi = nodeType.y;
+					pos2 = texture2D(posTexture, vec2(0.0, (pi+0.5)/pNum)).xyz;
+					mass2 = texture2D(velTexture, vec2(0.0, (pi+0.5)/pNum)).a;
+					computeAOf2(a, pos2, mass2);
+				}
+				if(nodeType.z != -1.0 && (nodeType.z+0.5)/pNum != vUv.y) {
+					pi = nodeType.z;
+					pos2 = texture2D(posTexture, vec2(0.0, (pi+0.5)/pNum)).xyz;
+					mass2 = texture2D(velTexture, vec2(0.0, (pi+0.5)/pNum)).a;
+					computeAOf2(a, pos2, mass2);
+				}
+				a = abs(a);
+				
+			} else {
+				vec4 bound = texture2D(boundTex, vec2(0.0, (index+0.5)/nodeNum));
+				float s = 2.0 * bound.a;
+				float d = distance(bound.xyz, pos);
+				if (s / d < BH_THETA) {
+					mass2 = cm.a, pos2 = cm.xyz;
+					computeAOf2(a, pos2, mass2);
+					
+					return true;
+				}
+
 			}
 			
-			
-		}
-		void handle(float index, inout vec3 a) {
-			a.r += 1.0;
+			return false;
 		}
 		vec3 computeA() {
-			const float NLEAF = 1.0;
-			const float NNODE = 0.0;
-			const float NNULL = -1.0;
-			const float maxSib = 8.0;
-			float maxNode = nodeNum;
+			
+			float maxNode = nodeNum - 1.0;
 			vec4 p = texture2D(posTexture, vUv);
 			vec3 a;
 			// traverse tree
@@ -220,47 +280,55 @@
 			float sibIndex = 1.0;
 			Stack stack;
 			stack.current = -1;
-			vec4 nodeType = texture2D(typeTex, vec2(0.0, index));
-			
+			vec4 nodeType = texture2D(typeTex, vec2(0.0, (index + 0.5) / nodeNum));
+			// count += 1.0;
 			for(int l1 = 1; l1 > 0; l1 ++) { 
-				if(nodeType.a == NLEAF && stack.current == -1 && sibIndex > maxSib)
+				if(nodeType.a == NNULL && stack.current == -1 && sibIndex > maxSib)
 					break;
-				// 如果不为空，那么先处理，再压栈 
+				count += 0.2;
+				// 如果不为空或不超出最大节点数，那么先处理，再压栈 
 				for(int l2 = 1; l2 > 0; l2 ++) {
 					if(nodeType.a == NNULL || index > maxNode)// node is null
 						break;
+					
 					// do with node
-					handle(index, a);
+					bool ib = handle(index, a, nodeType);
+					if(ib)
+						break;
+					// return a;
 					Push(stack, stackEntryCons(index));
 					index = index * 8.0 + 1.0;
 					
 					sibIndex = 1.0;
-					nodeType = texture2D(typeTex, vec2(0.0, index));
+					nodeType = texture2D(typeTex, vec2(0.0, (index + 0.5) / nodeNum));
+					
 				}
+				
+				// break;
 				// 如果是最后一个兄弟节点或index超出，那么返回上一层，如果是根节点，那么函数返回
 				for(int l3 = 1; l3 > 0; l3 ++) {
-					if(index == 0.0)
+					if(index == 0.0){
+						// a.b = 123.0;
+						a.b = count;
 						return a;
-					if(sibIndex != maxSib || index <= maxNode)
+					}
+					if(sibIndex != maxSib)
 						break;
 					indexEntry = Pop(stack);
 					index = indexEntry.data;
-					// float rr = 19.0 - floor(19.0 / 8.0) * 8.0;
-					sibIndex = index - floor(index / 8.0) * 8.0;
+					
+					sibIndex = mod(index, 8.0);
 				}
+				
+				
 				// 下一个兄弟节点
 				indexEntry = getTop(stack);
 				index = indexEntry.data;
 				index = index * 8.0 + ++sibIndex;
-				nodeType = texture2D(typeTex, vec2(0.0, index));
+				nodeType = texture2D(typeTex, vec2(0.0, (index + 0.5) / nodeNum));
+				
 			}
-			// if(nodeType.a == NLEAF)
-			// 	a.r = 1.0;
-			// if(stack.current == -1)
-			// 	a.g = 1.0;
-			// if(sibIndex > maxSib)
-			// 	a.b = 1.0;
-
+			a.b = count;
 			return a;
 		}
 
@@ -269,7 +337,6 @@
 			
 			r = vec4(computeA(), 0.0);
 			// r = texture2D(velTexture, vec2(0.0, 0.0));
-			// test mod
 			
 			r /= scale;
 			return r;

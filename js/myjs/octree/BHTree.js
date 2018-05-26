@@ -45,7 +45,7 @@ BHTree.prototype.printTree = function() {
 // BHTree.prototype.
 function initCelebodies() {
 	var cbs = [];
-	var mass = 1e16
+	var mass = 1e20
 	var planettx = txloader.load('resource/textures/planets/earth.jpg')
 	var mat = new THREE.MeshLambertMaterial({
 					map: planettx,
@@ -62,17 +62,17 @@ function initCelebodies() {
 	// 		cbs.push(cb);
 	// 	}
 	// }
-	var cb = new Celebody(1, mass, new Float32Array([0, 0, 0]), new Float32Array([200, 100, 100]));
+	var cb = new Celebody(1, mass, new Float32Array([0, 0, 0]), new Float32Array([10000, 10000, 0]));
 	cb.mesh.material = mat, cbs.push(cb)
-	cb = new Celebody(1, mass, new Float32Array([0, 0, 0]), new Float32Array([-200, 100, 100]));
+	cb = new Celebody(1, mass, new Float32Array([0, 0, 0]), new Float32Array([-10000, -10000, 0]));
 	cb.mesh.material = mat, cbs.push(cb)
-	// cb = new Celebody(1, 100, new Float32Array([0, 0, 0]), new Float32Array([-18000, 18000, 1000]));
+	cb = new Celebody(1, mass, new Float32Array([0, 0, 0]), new Float32Array([10000, -10000, 0]));
+	cb.mesh.material = mat, cbs.push(cb)
+	cb = new Celebody(1, mass, new Float32Array([0, 0, 0]), new Float32Array([-10000, 10000, 0]));
+	cb.mesh.material = mat, cbs.push(cb)
+	// cb = new Celebody(1, mass, new Float32Array([0, 0, 0]), new Float32Array([-18000, 1000, 1000]));
 	// cb.mesh.material = mat, cbs.push(cb)
-	// cb = new Celebody(1, 100, new Float32Array([0, 0, 0]), new Float32Array([-1000, 1000, 1000]));
-	// cb.mesh.material = mat, cbs.push(cb)
-	// cb = new Celebody(1, 100, new Float32Array([0, 0, 0]), new Float32Array([-18000, 1000, 1000]));
-	// cb.mesh.material = mat, cbs.push(cb)
-	// cb = new Celebody(1, 100, new Float32Array([0, 0, 0]), new Float32Array([-1000, 18000, 3000]));
+	// cb = new Celebody(1, mass, new Float32Array([0, 0, 0]), new Float32Array([-1000, 18000, 3000]));
 	// cb.mesh.material = mat, cbs.push(cb)
 	
 	addCelebody(cbs);

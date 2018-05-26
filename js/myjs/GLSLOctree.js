@@ -6,12 +6,12 @@ var debug = false
 
 function glsloctree(nodeIpt, cbs) {
     
-    console.log("creating input data ...");
+   
     var num = cbs.length
     ph = num
     var level = 3, nh = (Math.pow(8, level) - 1) / 7
 	setupGpu(nodeIpt, cbs);
-	
+	console.log("加速度gpu计算结果:");
     var result = gpuImpl();
 
 }
@@ -73,7 +73,9 @@ function textureGeneratorMaterial(pos, vel, nodeTex) {
     fragmentShader = 'const float rsl = ' + resolution + '.0;' + fragmentShader
     var uniforms = {
         resolution: {type: "f", value: resolution},
-        nodeNum: {type: "f", value: nh},
+        // G: {type: "f", value: G},
+        pNum: {type: "f", value: ph},
+        nodeNum: {type: "f", value: nh + 1},
         posTexture: {"type": "t", "value": pos},
         velTexture: {"type": "t", "value": vel},
         boundTex: {'type': '1t', 'value': nodeTex.boundTex},
@@ -100,6 +102,7 @@ function createPostx(cbs) {
 		input[4*i + 1] = cbs[i].position[1]
 		input[4*i + 2] = cbs[i].position[2]
 	}
+	console.log('位置: ')
 	console.log(input)
 	return createDataTexture(input, pw, ph)
 }
