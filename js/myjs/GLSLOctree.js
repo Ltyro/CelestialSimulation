@@ -1,97 +1,132 @@
 
 var pw = 1, ph = 6, pNum = pw * ph
-var nw = 1, nh = 72, nodeNum = nw * nh
+var nw = 1, nh = 72, nodeNum
 var resolution = 300;
 var debug = false
 
-function glsloctree(nodeIpt, cbs) {
-    
-   
-    var num = cbs.length
-    ph = num
-    var level = 3, nh = (Math.pow(8, level) - 1) / 7
-	setupGpu(nodeIpt, cbs);
-	console.log("加速度gpu计算结果:");
-    var result = gpuImpl();
+var glsloctree = function(nodeIpt, cbs) {
 
+    
+    var material
+    var num = cbs.length
+    pNum = ph = num
+    var level = 3, nh = (Math.pow(8, level) - 1) / 7
+    nodeNum = nh
+
+	
+	
+	// for(var i = 0; i < 10; i ++) {
+	// 	render()
+	// }
+	// console.log("gpu计算结果:");
+	// readPix()
+
+    
+
+	function readPix() {
+		var readWidth = pw, readHeight = ph
+	    var buffer = new Uint8Array(readWidth * readHeight * 4);
+	    var gl = tRenderer.getContext();
+	    gl.readPixels(0, 0, readWidth, readHeight, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
+	    console.log(buffer)
+	}
+
+	function render() {
+		
+    	this.computeV()
+    	this.computeP()
+	}
 }
 
+glsloctree.init = function(nd, cbs) {
+	var tScene, tRenderer, tCamera, uniforms
+    var plane, vMat, pMat
 
-function setupGpu(nd, cbs) {
-	renderer = window.renderer || new THREE.WebGLRenderer();
+
+	tRenderer = window.tRenderer || new THREE.WebGLRenderer();
+	this.tRenderer = tRenderer
     // renderer.setClearColor(0x000000, 1);
-    renderer.setSize(resolution, resolution);
-    renderer.domElement.setAttribute('id', 'renderer');
-    document.body.appendChild(renderer.domElement);
+    tRenderer.setSize(resolution, resolution);
+    // tRenderer.domElement.setAttribute('id', 'renderer');
+    document.body.appendChild(tRenderer.domElement);
     var width = pw, height = ph
     
-    textureCamera = new THREE.OrthographicCamera(-width/2, width/2, height/2, -height/2, -100, 100);
-    textureCamera.position.z = 10;	
-	
+    tCamera = new THREE.OrthographicCamera(-width/2, width/2, height/2, -height/2, -100, 100);
+    tCamera.position.z = 10;	
+	this.tCamera = tCamera
 	var pos = createPostx(cbs)
 	var vel = createVeltx(cbs)
 	
-    var nodeTex = {
-		boundTex: createDataTexture(nd.boundIpt, nw, nh),
-		CMTex: createDataTexture(nd.CMIpt, nw, nh),
-		typeTex: createDataTexture(nd.typeIpt, nw, nh),
-	}
-    textureScene = new THREE.Scene();
-    var plane = new THREE.Mesh(
-        new THREE.PlaneGeometry(width, height), 
-        textureGeneratorMaterial(pos, vel, nodeTex)
+ //    var nodeTex = {
+	// 	boundTex: createDataTexture(nd.boundIpt, nw, nh),
+	// 	CMTex: createDataTexture(nd.CMIpt, nw, nh),
+	// 	typeTex: createDataTexture(nd.typeIpt, nw, nh),
+	// }
+	var nodeTex = createDataTexture(nd.node, tNodeNum, pNum)
+    this.tScene = tScene = new THREE.Scene();
+    
+    this.uniforms = uniforms = {
+        pNum: {type: "f", value: pNum},
+        nodeNum: {type: "f", value: tNodeNum},
+        posTexture: {"type": "t", "value": pos},
+        velTexture: {"type": "t", "value": vel},
+        nodeTexture: {type: 't', value: nodeTex}
+    };
+    this.vMat = generateMat(uniforms, 'octVert', 'octVelFrag')
+    this.vMat.defines.nodesNum = pNum.toFixed(1)
+    this.pMat = generateMat(uniforms, 'octVert', 'octPosFrag')
+
+    this.plane = new THREE.Mesh(
+        new THREE.PlaneGeometry(width, height)
     );
-    plane.position.z = -10;
-    textureScene.add(plane);
+    this.plane.position.z = -10;
+    tScene.add(this.plane);
+
+    this.pTarget = new THREE.WebGLRenderTarget(pw, ph, {minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat});
+    this.vTarget = new THREE.WebGLRenderTarget(pw, ph, {minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat});
 }
 
-function gpuImpl() {
-	var renderTarget = new THREE.WebGLRenderTarget(pw, ph, {minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat});
-     
-	renderer.render(textureScene, textureCamera, renderTarget, true);
-	var readWidth = pw, readHeight = ph
-    var buffer = new Uint8Array(readWidth * readHeight * 4);
-    var gl = renderer.getContext();
-    gl.readPixels(0, 0, readWidth, readHeight, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
-    
-    if (debug) console.log(" --- OUTPUT:")
-    if (debug) printArray(buffer, 4);
+glsloctree.computeV = function() {
+	this.plane.material = this.vMat
+	this.tRenderer.render(this.tScene, this.tCamera, this.vTarget)
+	this.uniforms.velTexture.value = this.vTarget.texture
+	// readPix()
+	return this.vTarget.texture
+}
+
+glsloctree.computeP = function() {
+	this.plane.material = this.pMat
+	this.tRenderer.render(this.tScene, this.tCamera, this.pTarget)
+	this.uniforms.posTexture.value = this.pTarget.texture
+	// readPix()
+	return this.pTarget.texture
 	
-	var count = 0;
-	// console.log(buffer)
-	var result = buffer
-	
-	console.log(result)
-	return result;
 }
 
  
-function textureGeneratorMaterial(pos, vel, nodeTex) {
-    var vertexShader = document.getElementById( 'octVert' ).textContent
+function generateMat(uniforms, vert, frag) {
+    var vertexShader = document.getElementById( vert ).textContent
      
-    var fragmentShader = document.getElementById( 'octFrag' ).textContent
-    fragmentShader = 'const float rsl = ' + resolution + '.0;' + fragmentShader
-    var uniforms = {
-        resolution: {type: "f", value: resolution},
-        // G: {type: "f", value: G},
-        pNum: {type: "f", value: ph},
-        nodeNum: {type: "f", value: nh + 1},
-        posTexture: {"type": "t", "value": pos},
-        velTexture: {"type": "t", "value": vel},
-        boundTex: {'type': '1t', 'value': nodeTex.boundTex},
-        CMTex: {'type': 't', 'value': nodeTex.CMTex},
-        typeTex: {'type': 't', 'value': nodeTex.typeTex} 
-    };
+    var fragmentShader = document.getElementById( frag ).textContent
+    // fragmentShader = 'const float rsl = ' + resolution + '.0;' + fragmentShader
+    // var uniforms = {
+    //     resolution: {type: "f", value: resolution},
+    //     // G: {type: "f", value: G},
+    //     pNum: {type: "f", value: pNum},
+    //     nodeNum: {type: "f", value: tNodeNum},
+    //     posTexture: {"type": "t", "value": pos},
+    //     velTexture: {"type": "t", "value": vel},
+    //     // boundTex: {'type': '1t', 'value': nodeTex.boundTex},
+    //     // CMTex: {'type': 't', 'value': nodeTex.CMTex},
+    //     // typeTex: {'type': 't', 'value': nodeTex.typeTex} 
+    //     nodeTexture: {type: 't', value: nodeTex}
+    // };
+    
     return new THREE.ShaderMaterial({
         uniforms: uniforms,
         vertexShader: vertexShader,
         fragmentShader: fragmentShader
     });
- //    return new THREE.MeshBasicMaterial( {
-	//     color: 0xff0000,
-	//     transparent: true, 
-	//     opacity: 0.8,
-	// } );
 }
 
 function createPostx(cbs) {

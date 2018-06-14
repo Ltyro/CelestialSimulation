@@ -32,8 +32,8 @@ function pc_init() {
 	// ShaderMaterial
 	var material = new THREE.ShaderMaterial( {
 		uniforms:       particleUniforms,
-		vertexShader:   document.getElementById( 'particleVertexShader' ).textContent,
-		fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
+		vertexShader:   document.getElementById( 'pcVert' ).textContent,
+		fragmentShader: document.getElementById( 'pcFrag' ).textContent
 	} );
 
 	particles = new THREE.Points( geometry, material );

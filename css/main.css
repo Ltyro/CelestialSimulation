@@ -1,0 +1,86 @@
+body {
+	background:#777;
+	padding:0;
+	margin:0;
+	font-weight: bold;
+	overflow:hidden;
+}
+#info {
+	position: absolute;
+	top: 10px; width: 100%;
+	color: #ffffff;
+	padding: 5px;
+	font-family:Monospace;
+	font-size:13px;
+	text-align:center;
+	z-index:1000;
+}
+a {
+	color: #ffffff;
+}
+#oldie a { 
+	color:#da0 
+}
+#celeInfo {
+	color: white;
+	position: absolute;
+    width: 220px;
+    height: 602px;
+    right: 0px;
+    top: 10px;
+    border-radius: 10px;
+    background: rgba(100, 100, 100, 0.7);
+}
+.velInfo {
+	font-size: 15px;
+}
+.ciV,.ciP,.ciR,.ciM,.ciD,.ciA {
+	
+	width: 100px;
+}
+#controller {
+	position: absolute;
+    width: 900px;
+    height: 30px;
+    bottom: 0px;
+    border-radius: 5px;
+    left: 100px;
+    background: rgba(100, 100,100,0.7);
+}
+
+#timeSpeed {
+	margin: 5px;
+    width: 30%;
+    height: 100%;
+    left: 5%;
+    position: absolute;
+    color: rgba(233,233,233,0.7);
+    font-size: 15px;
+}
+#timeScale {
+	width: 20px;
+}
+#timeConversion {
+	position: absolute;
+    width: 50px;
+    left: 60px;
+    top: -1px;
+}
+#timeRange {
+	position: absolute;
+    left: 50%;
+    top: 0px;
+}
+#timeRangeIpt {
+	width: 60%;
+}
+#pause {
+	cursor: pointer;
+}
+#add {
+	width: 100px;
+    margin: 5px;
+    position: absolute;
+    left: 35%;
+    cursor: pointer;
+}

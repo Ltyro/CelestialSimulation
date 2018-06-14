@@ -2,14 +2,15 @@
 if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
 var container;
-var orbitControls
-var camera, scene, renderer;
-var clock, composer, txloader, stats
-var mesh, lightMesh, geometry;
+var orbitControls, dragControls 
+var camera, scene, renderer
+var clock, composer, outlinePass, raycaster, selectedObjects, infoWindowCB, txloader, stats
+var controller
+var celebodyManager
 // physic 
 // 比例：1 : 1.496e10m
-var G = 6.67e-11, M_SUN = 1.9891e30, M_EARTH = 5.965e24, L_SUNEARTH = 1.496e11
-var SCALE = L_SUNEARTH / 100;
+var G = 6.67e-11, M_SUN = 1.9891e30, M_EARTH = 5.965e24, L_SUNEARTH = 1.496e11, EPSILON = 1
+var SCALE = 1e8, INVERTSCALE = 1e-8
 //a = G * M / r^2 = v^2 / r
 var a_earth = G * M_SUN / (L_SUNEARTH * L_SUNEARTH);	// 加速度
 var v_earth = Math.sqrt( G * M_SUN / L_SUNEARTH );	// 线速度
@@ -20,7 +21,7 @@ var celebodies = [], particles;
 var t_start, t_end, move_flag = true
 var directionalLight, pointLight;
 
-var mouseX = 0, mouseY = 0;
+var mouse = new THREE.Vector2(), mouseX = 0, mouseY = 0;
 
 var windowHalfX = window.innerWidth / 2;
 var windowHalfY = window.innerHeight / 2;
@@ -41,7 +42,7 @@ var RUN = {
 		render: bh_render
 	}
 }
-var mode = 'bhtree'
+var mode = 'normal'
 commonInit()
 RUN[mode].init()
 animate();
@@ -65,8 +66,8 @@ function initSun() {
 	uniforms.texture2.value.wrapS = uniforms.texture2.value.wrapT = THREE.RepeatWrapping;
 	var sunmat;
 	// var suntx = txloader.load('resource/textures/sun/sun.jpg')
-	$.get('resource/shaders/sun/vertexShader.vs', function(vs){ 
-		$.get('resource/shaders/sun/fragmentShader.fs', function(fs){ 
+	$.get('shaders/sun/vertexShader.vs', function(vs){ 
+		$.get('shaders/sun/fragmentShader.fs', function(fs){ 
 			sunmat = new THREE.ShaderMaterial( {
 
 						uniforms: uniforms,
@@ -85,59 +86,13 @@ function addCelebody(cbs) {
 		scene.add(celebody.mesh);
 	})
 }
-
-function initPlanet() {
-	
-	var planet_geo = new THREE.SphereGeometry(0.3, 15, 15);
-	var planettx = txloader.load('resource/textures/planets/earth.jpg');
-	var planet_mat = new THREE.MeshLambertMaterial({
+function createMaterial(pic) {
+	var planettx = txloader.load(pic);
+	var mat = new THREE.MeshLambertMaterial({
 		map: planettx,
 		overdraw: 0.5 
 	})
-	var planet = new THREE.Mesh(planet_geo, planet_mat);
-	planet.rotation.y = 0.4;
-	scene.add(planet);
-
-	Planet.planet = planet;
-	Planet.r = 100 //公转轨道半径
-	planet.position.x = Planet.r;
-	// planet.position.z = 10 
-	Planet.F_scalar;// 受力
-	Planet.m = M_EARTH;// 质量
-	Planet.a_scalar = a_earth / SCALE;//1.44
-	Planet.v_scalar = v_earth / SCALE;
-	var a = planet.position.clone().normalize().multiplyScalar(-Planet.a_scalar);
-	Planet.a = new Float32Array([a.x, a.y, a.z]);
-	// Planet.v0 = new THREE.Vector3(0, 0, -6)//初速度
-	Planet.v = new Float32Array([0, -Planet.v_scalar, 0]);//速度
-	Planet.angle = 0;
-	// Planet.w = Planet.v.length() / Planet.r//角速度
-}
-function planetMove(delta, i) {
-	var planet = Planet.planet, pos = planet.position;
-	var posarr = new Float32Array(3);
-	for(var i = 0; i < 3; i++) {
-		posarr[i] = Planet.v[i] * delta;
-	}
-	posarr[0] += pos.x, posarr[1] += pos.y, posarr[2] += pos.z;
-	pos.fromArray(posarr) // calculate position
-	var r = planet.position.length(), v = Planet.v;
-	// if(r > 10)
-	// 	console.log(2*Math.PI*r / Math.sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]) / 86400)
-	var norma = pos.clone().normalize().multiplyScalar(-Planet.a_scalar), a = [];
-	a[0] = norma.x, a[1] = norma.y, a[2] = norma.z, Planet.a = a;
-	for(var i = 0; i < 3; i++) {
-		Planet.v[i] += Planet.a[i] * delta;
-	}
-	// Planet.a = planet.position.clone().divideScalar(-100) // calculate a
-	// Planet.v.add(Planet.a.clone().multiplyScalar(delta)) // calculate v
-
-	// if(i > 8) {
-	// 	Planet.angle += Planet.w * delta
-	// 	console.log(planet.position.x = Planet.r * Math.cos(Planet.angle))
-	// 	console.log(planet.position.z = Planet.r * Math.sin(Planet.angle))
-	// }
-	
+	return mat
 }
 
 
@@ -145,32 +100,55 @@ function init() {
 	
 	// initSun()
 	// initPlanet() //earth
-	initCelebodies()
+	// initCelebodies()
+	var cbs = []
 	// sun
-	// var v = new Float32Array([0.0876, 0.00145, -0.268]);
-	// var pos = new Float32Array([49400, 798, -156345]);
-	// var cb = new Celebody(1, M_SUN, v, pos);
-	// cb.mesh.material = mat
-	// cbs.push(cb);
+	// var sunpic = 'resource/textures/sun/sun.jpg'
+	var v = new Float32Array([0.0876, 0.00145, -0.268]);
+	var pos = new Float32Array([49400, 798, -156345]);
+	var cb = new Celebody(1, M_SUN, v, pos, CommomParam.R_SUN);
+	// cb.setMaterial(createMaterial(earthpic))
+	cb.mesh.material.color = new THREE.Vector3(1, 1, 1)
+	cb.setName('太阳')
+	cbs.push(cb);
 
-	// // earth
-	// v = new Float32Array([27700, 0.627, 12200]);
-	// pos = new Float32Array([59855368000, -5419989, -1.34e11]);
-	// cb = new Celebody(2, M_EARTH, v, pos);
-	// cb.mesh.material = mat
-	// cbs.push(cb);
+	// earth
+	var earthpic = 'resource/textures/planets/earth.jpg'
+	v = new Float32Array([27700, 0.627, 12200]);
+	pos = new Float32Array([59855368000, -5419989, -1.34e11]);
+	cb = new Celebody(2, M_EARTH, v, pos, CommomParam.R_EARTH);
+	cb.setMaterial(createMaterial(earthpic))
+	cb.setName('earth')
+	cbs.push(cb);
 
-	 
+	v = new Float32Array([27700, 0.627, 12200]);
+	pos = new Float32Array([59855368000, -5419989, 1.34e11]);
+	cb = new Celebody(3, M_EARTH, v, pos, CommomParam.R_EARTH);
+	cb.setMaterial(createMaterial(earthpic))
+	cb.setName('earth')
+	cbs.push(cb);
+
+	addCelebody(cbs)
 	calcu_E(celebodies);
 	document.getElementById('pnum').innerText = celebodies.length;
 	t_start = new Date();
 	
 }
 
+function printInfo(id) {
+	var cb = getCBById(id)
+	console.log(cb.name+'`s information:')
+	console.log('vx='+cb.v[0]+',vy='+cb.v[1]+',vz='+cb.v[2])
+	console.log('px='+cb.position[0]+',py='+cb.position[1]+',pz='+cb.position[2])
+	console.log('轨道半径: '+disOf2cb(cb, getCBById(1)))
+}
+
 function planetsMove(/*celebodies, */interval) {
 	// 先计算加速度a，再计算位移后位置position，最后算速度v
 	// console.time('nm_computeA');
+	var t1 = new Date()
 	calcu_a(/*celebodies*/);
+	tcomputeA += (new Date() - t1)
 	// console.timeEnd('nm_computeA');
 	calcu_p(/*celebodies, */interval);
 	calcu_v(/*celebodies, */interval);
@@ -183,11 +161,12 @@ function calcu_a(/*celebodies*/) {
 		for(var j = 0; j < cbs.length; j ++) {
 			if(i == j)
 				continue;
+			computeCount ++
 			var cbj = cbs[j], cbpj = cbj.position;
 			var dif_x = cbpj[0]-cbp[0], dif_y = cbpj[1]-cbp[1], dif_z = cbpj[2]-cbp[2];
 			var sq_dis = dif_x*dif_x+dif_y*dif_y+dif_z*dif_z;// 距离平方
 			var dis = Math.sqrt(sq_dis);
-			var a_scalar = G*cbs[j].m/sq_dis;// 加速度大小
+			var a_scalar = G*cbs[j].m/(sq_dis + EPSILON);// 加速度大小
 			var normal_x = dif_x/dis, normal_y = dif_y/dis, normal_z = dif_z/dis;
 			if(cb.r + cbj.r > dis){
 				// aggregate(cb,  cbj);
@@ -207,6 +186,7 @@ function calcu_a(/*celebodies*/) {
 }
 
 function computeAcceleOf2(G, c1, c2, doboth) {
+	// computeCount ++
 	var m1 = c1.m, m2 = c2.m, 
 		p1 = c1.position, p2 = c2.position;
 	return computeAcceleOf2directly(G, m1, p1, m2, p2, doboth)
@@ -267,32 +247,67 @@ function calcu_v(/*celebodies, */interval) {
 function render() {
 	var interval = clock.getDelta();
 	orbitControls.update();
-
+	if(infoWindowCB)
+		upgradeInfoWindow()
+	controller.update()
 	// renderer.render( scene, camera );
 	if(uniforms)
 		uniforms.time.value += interval;
-	var dn = 10, ddn = interval / dn;
-	//planet
-	if(ddn)
+	var dn = controller.cps, ddn = interval / dn;
+	//planet 
+	if(ddn && !isPause)
 		for(var i = 0; i < dn; i ++) { 
-			if(move_flag)
-				planetsMove(/*celebodies, */ddn );
+			planetsMove(/*celebodies, */ddn * controller.speed);
+			
 			// planetMove(interval * 200000, i)
 		}
 	
 	// if((~~((new Date() - t_start) / 1000)%3) == 0) {
 	// 	calcu_E(celebodies)
 	// }
-	renderer.clear();
-	// composer.render( 0.01 );
+	// renderer.clear();
+	composer.render( 0.01 );
 }
 
 function animate() {
 
 	requestAnimationFrame( animate );
 	stats.update();
+	// console.time('test_bh_speed')
 	RUN[mode].render();
-
+	// console.timeEnd('test_bh_speed')
+	// console.time('test_basic')
+	// var e1 = calcu_E(celebodies)
+	// var num = 1
+	// for(var i = 0; i < num; i ++) {
+	// 	// computeCount = 0
+	// 	planetsMove(1/60)
+	// 	console.log(i+'/'+num)
+	// 	if(i == 49)
+	// 		printAccu(e1)
+	// 	if(i == 99)
+	// 		printAccu(e1)
+	// 	if(i == 249)
+	// 		printAccu(e1)
+	// 	if(i == 499)
+	// 		printAccu(e1)
+	// 	if(i == 999)
+	// 		printAccu(e1)
+	// 	if(i == 1999)
+	// 		printAccu(e1)
+		
+	// }
+	// console.log(tcomputeA)
+	// var e2 = calcu_E(celebodies)
+	// var accuracy = Math.abs((e2 - e1) / e1) * 100 + '%'
+	// console.log('accuracy: ' + accuracy)
+	// console.timeEnd('test_basic')
+}
+// accuracy
+function printAccu(e1) {
+	var e2 = calcu_E(celebodies)
+	var accuracy = Math.abs((e2 - e1) / e1) * 100 + '%'
+	console.log('accuracy: ' + accuracy)
 }
 // 系统机械能
 function calcu_E(cbs) {
@@ -393,14 +408,15 @@ function commonInit() {
 	// camera.position.y = 12;
 	clock = new THREE.Clock()
 	scene = new THREE.Scene();
-	scene.background = new THREE.CubeTextureLoader()
-		.setPath( 'resource/textures/cube/MilkyWay/' )
-		.load( [ 'dark-s_px.jpg', 
-				'dark-s_nx.jpg', 
-				'dark-s_py.jpg', 
-				'dark-s_ny.jpg', 
-				'dark-s_pz.jpg', 
-				'dark-s_nz.jpg' ] );
+	// scene.background = new THREE.CubeTextureLoader()
+	// 	.setPath( 'resource/textures/cube/MilkyWay/' )
+	// 	.load( [ 'dark-s_px.jpg', 
+	// 			'dark-s_nx.jpg', 
+	// 			'dark-s_py.jpg', 
+	// 			'dark-s_ny.jpg', 
+	// 			'dark-s_pz.jpg', 
+	// 			'dark-s_nz.jpg' ] );
+	scene.background = new THREE.Color(0x9999ff)
 	scene.add(new THREE.AmbientLight(0xffffff, 0.4))
 
 	renderer = new THREE.WebGLRenderer();
@@ -425,10 +441,27 @@ function commonInit() {
 	composer = new THREE.EffectComposer( renderer );
 
 	composer.addPass( renderModel );
-	composer.addPass( effectBloom );
-	composer.addPass( effectFilm );
+	// composer.addPass( effectBloom );
+	// composer.addPass( effectFilm );
+	celebodyManager = new CelebodyManager()
+	controller = new Controller()
+	initInteractive()
 	//
 	document.getElementById('mode').innerText = mode;
 	window.addEventListener( 'resize', onWindowResize, false );
 	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+}
+
+function getCBById(id) {
+	for(var i = 0; i < celebodies.length; i ++) 
+		if(celebodies[i].id == id) 
+			return celebodies[i]
+	return null
+}
+
+function getCBByMesh(mesh) {
+	for(var i = 0; i < celebodies.length; i ++) 
+		if(celebodies[i].mesh == mesh) 
+			return celebodies[i]
+	return null
 }

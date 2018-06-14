@@ -1,7 +1,6 @@
 // var Bounds3 = require('./bounds3.js');
-var MAX_ITEMS = 3, MAX_DEPTH = 16;
-if(typeof(module) != 'undefined')
-    module.exports = TreeNode;
+var MAX_ITEMS = 3, MAX_DEPTH = 64;
+var tNodeNum = 0
 
 function TreeNode(bounds) {
     this.bounds = bounds;
@@ -12,6 +11,7 @@ function TreeNode(bounds) {
     // this.sibIndex = null
     this.items = null;
     this.parent = null
+    this.nodeIdx = []
 }
 
 
@@ -43,12 +43,14 @@ TreeNode.prototype.getSubNode = function(cb) {
         var child = new TreeNode(bounds)
         child.parent = that
         this.q[quadIdx] = child
+        this.nodeIdx.push(quadIdx)
     }
     
     return this.q[quadIdx]
 }
 
 TreeNode.prototype.insert = function insert(id, array, depth) {
+
     var isLeaf = this.isLeaf();
     var x = array[id].getX(),
         y = array[id].getY(),
