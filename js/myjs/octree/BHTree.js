@@ -1,4 +1,4 @@
-var bhtree, BH_THETA = 0.5;
+var bhtree, BH_THETA = 500;
 var farest = 0
 var computeCount = 0, tcomputeA = 0
 var pmaterial, gpuCompute
@@ -63,8 +63,9 @@ function initCelebodies() {
 		for(var j = 0; j < HEIGHT; j ++) {
 			var v = new Float32Array([randomVel*(Math.random()-0.5), randomVel*(Math.random()-0.5), randomVel*(Math.random()-0.5)]);
 			var pos = new Float32Array([posR*(Math.random()-0.5), posR*(Math.random()-0.5), posR*(Math.random()-0.5)]);
-			var cb = new Celebody(i*100+j, mass, v, pos);
+			var cb = new Celebody(i*HEIGHT+j, mass, v, pos, CommomParam.R_EARTH);
 			cb.mesh.material = mat
+			cb.setName( 'planet' + cb.id )
 			cbs.push(cb);
 		}
 	}
@@ -89,7 +90,7 @@ function initCelebodies() {
 	// cb.mesh.material = mat, cbs.push(cb)
 	
 	addCelebody(cbs);
-	document.getElementById('ptotalnum').innerText = WIDTH * HEIGHT;
+	// document.getElementById('ptotalnum').innerText = WIDTH * HEIGHT;
 }
 function printArray() {
 	console.log('bound array:')
@@ -103,7 +104,7 @@ function bh_init() {
 
 	initCelebodies()
 	// initParticles()
-	bhtree = new BHTree(1e10)
+	bhtree = new BHTree(1e15)
 	bhtree.buildTree(celebodies)
 	console.log(bhtree.root)
 	// turn tree to arr
@@ -149,16 +150,21 @@ function printMoveAttr(attr) {
 }
 
 function bh_render() {
-	// orbitControls.update()
-	// var interval = clock.getDelta()
-	// var dn = 10, ddn = interval / dn
+	orbitControls.update()
+	if(infoWindowCB)
+		upgradeInfoWindow()
+	controller.update()
+	// renderer.render( scene, camera );
+	if(uniforms)
+		uniforms.time.value += interval;
+	
+	var interval = clock.getDelta()
+	var dn = controller.cps, ddn = interval / dn;
 	// planet
-	// if(ddn)
-	// 	for(var i = 0; i < dn; i ++) {
-	// 		if(true)
-	// 			bh_planetsMove(ddn /** 20000*/)
-			
-	// 	}
+	if(ddn)
+		for(var i = 0; i < dn; i ++) {
+			bh_planetsMove(ddn * controller.speed)
+		}
 
 	// if((~~((new Date() - t_start) / 1000)%3) == 0) {
 	// 	calcu_E(celebodies)
@@ -170,39 +176,39 @@ function bh_render() {
 	// getCurrentRenderTarget( positionVariable ).texture;
 	// pmaterial.uniforms.textureVelocity.value = gpuCompute.
 	// getCurrentRenderTarget( velocityVariable ).texture;
-	var e1 = calcu_E(celebodies)
-	var count = 100
-	var t1 = new Date()
-	for(var i = 0; i < count; i ++) {
-		bh_planetsMove(1/60, i)
-		// if(i % 500 == 0) 
-		console.log(i+'/'+count)
-		if(i == 49)
-			printAccu(e1)
-		if(i == 99) {
-			printAccu(e1)
-			console.log(new Date() - t1)
-		}
-		if(i == 249)
-			printAccu(e1)
-		if(i == 499) {
-			printAccu(e1)
-			console.log(new Date() - t1)
-		}
-		if(i == 999) {
-			printAccu(e1)
-			console.log(new Date() - t1)
-		}
-		if(i == 1999) {
-			printAccu(e1)
-			console.log(new Date() - t1)
-		}
-	}
-	tcomputeA += (new Date() - t1)
-	// console.log(computeCount)
-	console.log(tcomputeA)
-	printAccu(e1)
-	// renderer.render( scene, camera );
+	// var e1 = calcu_E(celebodies)
+	// var count = 100
+	// var t1 = new Date()
+	// for(var i = 0; i < count; i ++) {
+	// 	bh_planetsMove(1/60, i)
+	// 	// if(i % 500 == 0) 
+	// 	console.log(i+'/'+count)
+	// 	if(i == 49)
+	// 		printAccu(e1)
+	// 	if(i == 99) {
+	// 		printAccu(e1)
+	// 		console.log(new Date() - t1)
+	// 	}
+	// 	if(i == 249)
+	// 		printAccu(e1)
+	// 	if(i == 499) {
+	// 		printAccu(e1)
+	// 		console.log(new Date() - t1)
+	// 	}
+	// 	if(i == 999) {
+	// 		printAccu(e1)
+	// 		console.log(new Date() - t1)
+	// 	}
+	// 	if(i == 1999) {
+	// 		printAccu(e1)
+	// 		console.log(new Date() - t1)
+	// 	}
+	// }
+	// tcomputeA += (new Date() - t1)
+	// // console.log(computeCount)
+	// console.log(tcomputeA)
+	// printAccu(e1)
+	renderer.render( scene, camera );
 }
 
 function bh_planetsMove(dt, count) {

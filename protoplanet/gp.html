@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+	<script src="gp.js"></script>
+	<script src="../lib/three.js"></script>
+	<script src="../lib/js/controls/OrbitControls.js"></script>
+</head>
+<script type="x-shader/x-vertex" id="Vert">
+	varying vec2 vUv;
+    
+	void main() {
+	    vUv = uv;
+	    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+	}
+</script>
+<script type="x-shader/x-fragment" id="PosFrag">
+	#define delta (1.0 / 60.0)
+
+	varying vec2 vUv;
+	uniform sampler2D posTexture;
+	uniform sampler2D velTexture;
+	float scale = 255.0;
+	void main() {
+
+		vec4 tmpPos = texture2D( posTexture, vUv );
+		vec3 pos = tmpPos.xyz;
+
+		vec4 tmpVel = texture2D( velTexture, vUv );
+		vec3 vel = tmpVel.xyz;
+		float mass = tmpVel.w;
+
+		if ( mass == 0.0 ) {
+			vel = vec3( 0.0 );
+		}
+
+		
+		pos += 100.0;//vel * delta;
+		pos /= 255.0;
+		gl_FragColor = vec4( pos, 1.0 );
+
+	}
+</script>
+<script type="x-shader/x-fragment" id="VelFrag">
+	// #define nodesNum 73
+	#define MAXLEVEL 5
+	#define MAX_STACK_SIZE 8
+	#define BH_THETA 1.0
+	#define G 6.67e-1
+	#define delta (1.0 / 60.0)
+	// #define c 0// current node index
+	// global varies
+	float scale = 255.0;
+
+	varying vec2 vUv;
+	uniform float resolution;
+	uniform float pNum;
+	uniform float nodeNum;
+	// uniform sampler2D tree;
+	uniform sampler2D posTexture;
+	uniform sampler2D velTexture;
+
+	// uniform sampler2D nodeTexture;
+
+	vec3 pos;
+	vec3 vel;
+	float count = 0.0;
+	float mass;
+
+	void main() {
+
+		// vec4 testResult = testCase();
+
+		// init
+		pos = texture2D(posTexture, vUv).xyz;
+		vec4 vm = texture2D(velTexture, vUv);
+		vel = vm.xyz;
+		mass = vm.a;
+		vec3 a;
+
+		// for(float i = 0.0; i < nodesNum; i ++) {
+		// 	vec2 ncoord = vec2((i + 0.5) / nodeNum, vUv.y);
+		// 	vec4 node = texture2D(nodeTexture, ncoord);
+		// 	if(node.a == 0.0)
+		// 		continue;
+		// 	vec3 npos = node.xyz;
+		// 	float nmass = node.a;
+		// 	vec3 dPos = npos - pos;
+		// 	float distance = length( dPos );
+		// 	float distanceSq = distance * distance;// dot(dPos, dPos);
+
+		// 	a += G * nmass / distanceSq * normalize( dPos );
+		// }
+		// vel += delta * a;
+		
+		gl_FragColor = vm; //vec4(vel, 0.0);
+		
+	}
+</script>
+<script type="x-shader/x-vertex" id="particleVertexShader">
+
+	#include <common>
+
+	uniform sampler2D texturePosition;
+	uniform sampler2D textureVelocity;
+	uniform float cameraConstant;
+	uniform float density;
+	varying vec4 vColor;
+	varying vec2 vUv;
+	float radiusFromMass( float mass ) {
+		return pow((3.0 / (4.0 * PI)) * mass / density, 1.0 / 3.0);
+	}
+	void main() {
+		vUv = uv;
+		vec4 posTemp = texture2D(texturePosition, uv);
+		vec3 pos = posTemp.xyz;
+		vec4 velTemp = texture2D(textureVelocity, uv);
+		vec3 vel = velTemp.xyz;
+		float mass = velTemp.w;
+		// vec3 di = vec3(200.0, 200.0, 200.0);
+		// vColor = vec4(velTemp.x/10.0, velTemp.y/10.0, velTemp.z/10.0, 1);
+		vColor = vec4(1.0, mass / 250.0, 0.0, 1.0);
+
+		vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+		//float radius = pow( ( 3.0 / ( 4.0 * PI ) ) * mass / density, 1.0 / 3.0 );
+		float radius = radiusFromMass(mass);
+		if (mass == 0.0) {
+			gl_PointSize = 0.0;
+		}
+		else {
+			gl_PointSize = radius * cameraConstant / (- mvPosition.z);
+		}
+		gl_PointSize = 10.0;
+		gl_Position = projectionMatrix * mvPosition;
+	}
+</script>
+
+<script type="x-shader/x-fragment" id="particleFragmentShader">
+	varying vec2 vUv;
+	varying vec4 vColor;
+	uniform sampler2D texture;
+	void main() {
+
+		float f = length(gl_PointCoord - vec2( 0.5, 0.5));
+		
+		if (f > 0.5) {
+			discard;
+		}
+		// gl_FragColor = texture2D(texture, vUv);
+		gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); //vColor;
+		// if(gl_FragCoord.x<5000.0)
+		// 	gl_FragColor = vec4(1,0,0,1);
+	}
+
+</script>
+<body>
+	<script type="text/javascript">
+
+		var gp = new GP()
+		gp.init()
+		for(var i = 0; i < 2; i ++) {
+			gp.computeP()
+		}
+
+		var scene, renderer, camera, particleUniforms, controls
+		scene = new THREE.Scene()
+		renderer = new THREE.WebGLRenderer()
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		document.body.appendChild( renderer.domElement );
+		camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+		
+
+		camera.position.z = 500;
+		controls = new THREE.OrbitControls(camera, renderer.domElement);
+		var light = new THREE.DirectionalLight();
+		// light.position.set(0, 0, 100);
+		scene.add(light);
+
+		initParticles()
+		animate();
+
+		function animate() {
+			requestAnimationFrame( animate );
+			controls.update()
+			var renderedTx = gp.computeP()
+			particleUniforms.texturePosition.value = renderedTx
+			// particleUniforms.textureVelocity.value = gp.vTarget.texture
+			renderer.render(scene, camera);
+		}
+
+		function initParticles(pos) {
+			var geometry = new THREE.BufferGeometry();
+
+			var positions = new Float32Array(PARTICLES * 3);
+			var p = 0;
+
+			// for ( var i = 0; i < PARTICLES; i++ ) {
+
+			// 	positions[ p++ ] = ( Math.random() * 2 - 1 ) * effectController.radius;
+			// 	positions[ p++ ] = 0; //( Math.random() * 2 - 1 ) * effectController.radius;
+			// 	positions[ p++ ] = ( Math.random() * 2 - 1 ) * effectController.radius;
+
+			// }
+			// positions = new Float32Array([-100, -100, 0, 
+			// 							-100, 0, 0,
+			// 							0, -100, 0,
+			// 							0, 0, 0])
+			var uvs = new Float32Array( PARTICLES * 2 );
+			p = 0;
+
+			for (var j = 0; j < HEIGHT; j++) {
+
+				for (var i = 0; i < WIDTH; i++) {
+
+					uvs[p++] = i / (WIDTH -1);
+					uvs[p++] = j / (HEIGHT -1);
+
+				}
+
+			}
+			// uvs[0] = 1
+			// uvs[1] = 1
+			geometry.addAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+			geometry.addAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
+
+			particleUniforms = {
+				texturePosition: { value: null },
+				textureVelocity: { value: null },
+				cameraConstant: { value: getCameraConstant( camera ) },// 相机常数
+				density: { value: 0.0 }
+			};
+			// ShaderMaterial
+			var material = new THREE.ShaderMaterial( {
+				uniforms:       particleUniforms,
+				vertexShader:   document.getElementById( 'particleVertexShader' ).textContent,
+				fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
+			} );
+
+			material.extensions.drawBuffers = true;
+
+			var particles = new THREE.Points( geometry, material );
+			particles.matrixAutoUpdate = false;
+			particles.updateMatrix();
+
+			scene.add( particles );
+		}
+
+		function getCameraConstant(camera) {
+
+			return window.innerHeight / (Math.tan(THREE.Math.DEG2RAD * 0.5 * camera.fov) / camera.zoom);
+
+		}
+	</script>
+</body>
+</html>

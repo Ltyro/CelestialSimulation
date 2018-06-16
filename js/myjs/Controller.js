@@ -50,7 +50,9 @@ function Controller() {
 
 		var add = document.getElementById('add')
 		add.onclick = function() {
-			var id = celebodies[celebodies.length - 1].id + 1
+			var id = celebodies.length > 0 ? 
+					celebodies[celebodies.length - 1].id + 1 :
+					0
 			var v = new Float32Array([0, 0, 0]), pos = new Float32Array([0, 0, 0]);
 			cbAdded = new Celebody(id, M_EARTH, v, pos, CommomParam.R_EARTH);
 			cbAdded.setMaterial(createMaterial('resource/textures/planets/earth.jpg'))
@@ -78,6 +80,21 @@ function Controller() {
 			}
 
 		})
+
+		var select = document.getElementById('mode')
+		select.onchange = function() {
+			mode = select.options[select.selectedIndex].value
+			self.restart(mode)
+		}
+
+		var pnumipt = document.getElementById('pnum')
+		pnumipt.onkeydown = function(evt) {
+			if(evt.code == 'Enter') {
+				WIDTH = 1
+				HEIGHT = pnumipt.value
+				select.onchange()
+			}
+		}
 	}
 
 }
@@ -118,6 +135,11 @@ Controller.prototype.removeOutline = function(mesh) {
 			return
 		}
 	}
+}
+
+Controller.prototype.restart = function(mode) {
+	celebodyManager.clear()
+	RUN[mode].init()
 }
 
 function screenTo3DCoord(event) {

@@ -231,9 +231,18 @@
 		<script src="js/myjs/MouseInteractive.js"></script>
 		<script src="js/myjs/Controller.js"></script>
 		<div id="info">
-			模式: <span id="mode"></span>;
+			模式:
+			<select class='mode' id="mode">
+				<option value='normal'>pp</option>	
+				<option value='bhtree'>bh</option>
+			</select>
+			<!-- <span id="mode"></span> -->
+			;
 			机械能: <span id="E"></span> J;
-			粒子个数: <span id="pnum"></span> 个，共<span id="ptotalnum"></span>个;
+			粒子个数: 
+			<input id="pnum" type="text" style="width: 50px;">个
+			<!-- <span id="pnum"></span> 个 -->
+			<!-- ，共<span id="ptotalnum"></span>个; -->
 		</div>
 		
 		<script src="js/myjs/app.js"></script>

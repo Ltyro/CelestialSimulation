@@ -38,3 +38,15 @@ CelebodyManager.prototype.add = function(cb) {
 	this.add2array(cb)
 	this.add2scene(cb)
 }
+
+CelebodyManager.prototype.clear = function() {
+	var cbs = this.celebodies
+	for(var i = 0; i < cbs.length; i ++) {
+		var mat = cbs[i].mesh.material
+		if(mat.map)
+			mat.map.dispose()
+		mat.dispose()
+		scene.remove(cbs[i].mesh)
+	}
+	this.celebodies.length = celebodies.length = 0
+}

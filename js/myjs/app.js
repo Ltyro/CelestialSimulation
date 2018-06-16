@@ -26,7 +26,7 @@ var mouse = new THREE.Vector2(), mouseX = 0, mouseY = 0;
 var windowHalfX = window.innerWidth / 2;
 var windowHalfY = window.innerHeight / 2;
 
-var WIDTH = 10, HEIGHT = 10
+var WIDTH = 10, HEIGHT = 1
 
 var RUN = {
 	normal: {
@@ -86,12 +86,19 @@ function addCelebody(cbs) {
 		scene.add(celebody.mesh);
 	})
 }
-function createMaterial(pic) {
+function createMaterial(pic, type) {
 	var planettx = txloader.load(pic);
-	var mat = new THREE.MeshLambertMaterial({
-		map: planettx,
-		overdraw: 0.5 
-	})
+	var mat 
+	if(!type)
+		mat = new THREE.MeshLambertMaterial({
+			map: planettx,
+			overdraw: 0.5 
+		})
+	else if(type == 'phong')
+		mat = new THREE.MeshPhongMaterial({
+			map: planettx,
+			overdraw: 0.5 
+		})
 	return mat
 }
 
@@ -100,7 +107,7 @@ function init() {
 	
 	// initSun()
 	// initPlanet() //earth
-	// initCelebodies()
+	initCelebodies()
 	var cbs = []
 	// sun
 	// var sunpic = 'resource/textures/sun/sun.jpg'
@@ -117,7 +124,7 @@ function init() {
 	v = new Float32Array([27700, 0.627, 12200]);
 	pos = new Float32Array([59855368000, -5419989, -1.34e11]);
 	cb = new Celebody(2, M_EARTH, v, pos, CommomParam.R_EARTH);
-	cb.setMaterial(createMaterial(earthpic))
+	cb.setMaterial(createMaterial(earthpic, 'phong'))
 	cb.setName('earth')
 	cbs.push(cb);
 
@@ -128,7 +135,7 @@ function init() {
 	cb.setName('earth')
 	cbs.push(cb);
 
-	addCelebody(cbs)
+	// addCelebody(cbs)
 	calcu_E(celebodies);
 	document.getElementById('pnum').innerText = celebodies.length;
 	t_start = new Date();
@@ -408,16 +415,16 @@ function commonInit() {
 	// camera.position.y = 12;
 	clock = new THREE.Clock()
 	scene = new THREE.Scene();
-	// scene.background = new THREE.CubeTextureLoader()
-	// 	.setPath( 'resource/textures/cube/MilkyWay/' )
-	// 	.load( [ 'dark-s_px.jpg', 
-	// 			'dark-s_nx.jpg', 
-	// 			'dark-s_py.jpg', 
-	// 			'dark-s_ny.jpg', 
-	// 			'dark-s_pz.jpg', 
-	// 			'dark-s_nz.jpg' ] );
-	scene.background = new THREE.Color(0x9999ff)
-	scene.add(new THREE.AmbientLight(0xffffff, 0.4))
+	scene.background = new THREE.CubeTextureLoader()
+		.setPath( 'resource/textures/cube/MilkyWay/' )
+		.load( [ 'dark-s_px.jpg', 
+				'dark-s_nx.jpg', 
+				'dark-s_py.jpg', 
+				'dark-s_ny.jpg', 
+				'dark-s_pz.jpg', 
+				'dark-s_nz.jpg' ] );
+	// scene.background = new THREE.Color(0xeeeeff)
+	scene.add(new THREE.AmbientLight(0xffffff, 2))
 
 	renderer = new THREE.WebGLRenderer();
 	renderer.setPixelRatio( window.devicePixelRatio );
@@ -447,7 +454,7 @@ function commonInit() {
 	controller = new Controller()
 	initInteractive()
 	//
-	document.getElementById('mode').innerText = mode;
+	// document.getElementById('mode').innerText = mode;
 	window.addEventListener( 'resize', onWindowResize, false );
 	document.addEventListener( 'mousemove', onDocumentMouseMove, false );
 }
