@@ -3,8 +3,9 @@
 <head>
 	<title></title>
 	<script src="gp.js"></script>
-	<script src="../lib/three.js"></script>
-	<script src="../lib/js/controls/OrbitControls.js"></script>
+	<script src="../js/lib/three/three.js"></script>
+	<script src="../js/lib/three/controls/OrbitControls.js"></script>
+	<script src="../js/lib/three/GPUComputationRenderer.js"></script>
 </head>
 <script type="x-shader/x-vertex" id="Vert">
 	varying vec2 vUv;
@@ -15,27 +16,29 @@
 	}
 </script>
 <script type="x-shader/x-fragment" id="PosFrag">
-	#define delta (1.0 / 60.0)
-
-	varying vec2 vUv;
+	// #define delta (1.0 / 60.0)
+	#define resolution vec2(1.0, 1.0)
+	
+	// varying vec2 vUv;
 	uniform sampler2D posTexture;
-	uniform sampler2D velTexture;
-	float scale = 255.0;
+	// uniform sampler2D velTexture; 
+	
 	void main() {
-
+		vec2 vUv = gl_FragCoord.xy / resolution.xy;
 		vec4 tmpPos = texture2D( posTexture, vUv );
 		vec3 pos = tmpPos.xyz;
 
-		vec4 tmpVel = texture2D( velTexture, vUv );
-		vec3 vel = tmpVel.xyz;
-		float mass = tmpVel.w;
+		// vec4 tmpVel = texture2D( velTexture, vUv );
+		// vec3 vel = tmpVel.xyz;
+		// float mass = tmpVel.w;
 
-		if ( mass == 0.0 ) {
-			vel = vec3( 0.0 );
-		}
+		// if ( mass == 0.0 ) {
+		// 	vel = vec3( 0.0 );
+		// }
 
 		
-		pos += 100.0;//vel * delta;
+		// pos += 100.0;//vel * delta;
+		pos += vec3(1.0, 0.0, 0.0);
 		pos /= 255.0;
 		gl_FragColor = vec4( pos, 1.0 );
 
@@ -85,7 +88,7 @@
 		// 		continue;
 		// 	vec3 npos = node.xyz;
 		// 	float nmass = node.a;
-		// 	vec3 dPos = npos - pos;
+		// 	vec3 dPos = npos - pos; 
 		// 	float distance = length( dPos );
 		// 	float distanceSq = distance * distance;// dot(dPos, dPos);
 
@@ -114,6 +117,7 @@
 		vUv = uv;
 		vec4 posTemp = texture2D(texturePosition, uv);
 		vec3 pos = posTemp.xyz;
+		// pos = vec3(100.0, 0.0, 0.0);
 		vec4 velTemp = texture2D(textureVelocity, uv);
 		vec3 vel = velTemp.xyz;
 		float mass = velTemp.w;
@@ -125,10 +129,9 @@
 		//float radius = pow( ( 3.0 / ( 4.0 * PI ) ) * mass / density, 1.0 / 3.0 );
 		float radius = radiusFromMass(mass);
 		if (mass == 0.0) {
-			gl_PointSize = 0.0;
-		}
-		else {
-			gl_PointSize = radius * cameraConstant / (- mvPosition.z);
+			gl_PointSize = 100.0;
+		} else {
+			gl_PointSize = 100.0 * radius * cameraConstant / (- mvPosition.z);
 		}
 		gl_PointSize = 10.0;
 		gl_Position = projectionMatrix * mvPosition;
@@ -162,6 +165,7 @@
 			gp.computeP()
 		}
 
+		var PARTICLES = 1, WIDTH = 1, HEIGHT = 1
 		var scene, renderer, camera, particleUniforms, controls
 		scene = new THREE.Scene()
 		renderer = new THREE.WebGLRenderer()
@@ -175,17 +179,22 @@
 		var light = new THREE.DirectionalLight();
 		// light.position.set(0, 0, 100);
 		scene.add(light);
-
+		var gpuCompute, positionVariable
+		initComputeRenderer()
+		
 		initParticles()
 		animate();
 
 		function animate() {
-			requestAnimationFrame( animate );
+			requestAnimationFrame( animate )
 			controls.update()
 			var renderedTx = gp.computeP()
 			particleUniforms.texturePosition.value = renderedTx
-			// particleUniforms.textureVelocity.value = gp.vTarget.texture
-			renderer.render(scene, camera);
+			// renderedTx = gp.computeV()
+			// particleUniforms.textureVelocity.value = renderedTx
+			// gpuCompute.compute();
+			// particleUniforms.texturePosition.value = gpuCompute.getCurrentRenderTarget(positionVariable).texture;
+			renderer.render( scene, camera )
 		}
 
 		function initParticles(pos) {
@@ -212,8 +221,8 @@
 
 				for (var i = 0; i < WIDTH; i++) {
 
-					uvs[p++] = i / (WIDTH -1);
-					uvs[p++] = j / (HEIGHT -1);
+					uvs[p++] = i / (WIDTH - 1);
+					uvs[p++] = j / (HEIGHT - 1);
 
 				}
 
@@ -227,14 +236,14 @@
 				texturePosition: { value: null },
 				textureVelocity: { value: null },
 				cameraConstant: { value: getCameraConstant( camera ) },// 相机常数
-				density: { value: 0.0 }
+				density: { value: 0.45 }
 			};
 			// ShaderMaterial
 			var material = new THREE.ShaderMaterial( {
 				uniforms:       particleUniforms,
 				vertexShader:   document.getElementById( 'particleVertexShader' ).textContent,
 				fragmentShader: document.getElementById( 'particleFragmentShader' ).textContent
-			} );
+			} ); 
 
 			material.extensions.drawBuffers = true;
 
@@ -249,6 +258,20 @@
 
 			return window.innerHeight / (Math.tan(THREE.Math.DEG2RAD * 0.5 * camera.fov) / camera.zoom);
 
+		}
+
+		function initComputeRenderer() {
+			gpuCompute = new GPUComputationRenderer(1, 1, renderer);
+			var dtPosition = gpuCompute.createTexture();
+			
+			positionVariable = gpuCompute.addVariable( "posTexture", document.getElementById('PosFrag').textContent, dtPosition ); 
+			gpuCompute.setVariableDependencies(positionVariable, [ positionVariable/*, velocityVariable */]);
+			var positionUniforms = positionVariable.material.uniforms;
+
+			var error = gpuCompute.init();
+			if (error !== null) {
+				console.error(error);
+			}
 		}
 	</script>
 </body>

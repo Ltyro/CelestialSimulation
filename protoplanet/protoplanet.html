@@ -34,6 +34,7 @@
 			当前 <span id="protoplanets"></span>;
 			选择 
 			<select id="options">
+				<option value='1'>1</option>
 				<option value='4'>4</option>
 				<option value='16'>16</option>
 				<option value='64'>64</option>
@@ -60,14 +61,15 @@
 				vec2 uv = gl_FragCoord.xy / resolution.xy;
 				vec4 tmpPos = texture2D(texturePosition, uv);
 				vec3 pos = tmpPos.xyz;
-				vec4 tmpVel = texture2D(textureVelocity, uv);
-				vec3 vel = tmpVel.xyz;
-				float mass = tmpVel.w;
+				// vec4 tmpVel = texture2D(textureVelocity, uv);
+				// vec3 vel = tmpVel.xyz;
+				// float mass = tmpVel.w;
 
-				if (mass == 0.0) {
-					vel = vec3(0.0);
-				}
-				pos += vel * delta;
+				// if (mass == 0.0) {
+				// 	vel = vec3(0.0);
+				// }
+				// pos += vel * delta;
+				pos += vec3(1.0, 0.0, 0.0);
 				gl_FragColor = vec4(pos, 1.0);
 			}
 		</script>
@@ -133,7 +135,7 @@
 									vel = vec3(0.0);
 									break;
 								}
-							} 
+							}
 							float distanceSq = distance * distance;
 							float gravityField = gravityConstant * mass2 / distanceSq;
 							// gravityField = min( gravityField, 1000.0 );
@@ -179,11 +181,12 @@
 				//float radius = pow( ( 3.0 / ( 4.0 * PI ) ) * mass / density, 1.0 / 3.0 );
 				float radius = radiusFromMass(mass);
 				if (mass == 0.0) {
-					gl_PointSize = 0.0;
+					gl_PointSize = 100.0;
 				}
 				else {
-					gl_PointSize = radius * cameraConstant / (- mvPosition.z);
+					gl_PointSize = 100.0 * radius * cameraConstant / (- mvPosition.z);
 				}
+				gl_PointSize = 10.0;
 				gl_Position = projectionMatrix * mvPosition;
 			}
 		</script>
@@ -199,10 +202,10 @@
 				if (f > 0.5) {
 					discard;
 				}
-				gl_FragColor = texture2D(texture, gl_PointCoord);
+				// gl_FragColor = texture2D(texture, gl_PointCoord);
 				// gl_FragColor = vColor;
 				// if(gl_FragCoord.x<5000.0)
-				// 	gl_FragColor = vec4(1,0,0,1);
+				gl_FragColor = vec4(1,0,0,1);
 			}
 
 		</script>
@@ -286,6 +289,7 @@
 										'dark-s_ny.jpg', 
 										'dark-s_pz.jpg', 
 										'dark-s_nz.jpg' ] );
+				// scene.background = new THREE.Color(0xcccccc)
 				renderer = new THREE.WebGLRenderer();
 				// renderer.setClearColor(0xffffff);
 				renderer.setPixelRatio(window.devicePixelRatio);
@@ -314,7 +318,7 @@
 				window.addEventListener('resize', onWindowResize, false);
 				// initGUI();
 				initProtoplanets();
-				dynamicValuesChanger();
+				// dynamicValuesChanger();
 
 			}
 
@@ -325,18 +329,18 @@
 				var dtPosition = gpuCompute.createTexture();
 				var dtVelocity = gpuCompute.createTexture();
 
-				fillTextures(dtPosition, dtVelocity);
+				// fillTextures(dtPosition, dtVelocity);
 
-				velocityVariable = gpuCompute.addVariable( "textureVelocity", document.getElementById('computeShaderVelocity').textContent, dtVelocity );
+				// velocityVariable = gpuCompute.addVariable( "textureVelocity", document.getElementById('computeShaderVelocity').textContent, dtVelocity );
 				positionVariable = gpuCompute.addVariable( "texturePosition", document.getElementById('computeShaderPosition').textContent, dtPosition );
-				gpuCompute.setVariableDependencies(velocityVariable, [ positionVariable, velocityVariable ]);
-				gpuCompute.setVariableDependencies(positionVariable, [ positionVariable, velocityVariable ]);
+				// gpuCompute.setVariableDependencies(velocityVariable, [ positionVariable, velocityVariable ]);
+				gpuCompute.setVariableDependencies(positionVariable, [ positionVariable/*, velocityVariable */]);
 
 				positionUniforms = positionVariable.material.uniforms;
-				velocityUniforms = velocityVariable.material.uniforms;
+				// velocityUniforms = velocityVariable.material.uniforms;
 
-				velocityUniforms.gravityConstant = {value: 100.0};
-				velocityUniforms.density = {value: 0.0};
+				// velocityUniforms.gravityConstant = {value: 100.0};
+				// velocityUniforms.density = {value: 0.0};
 
 				var error = gpuCompute.init();
 				if (error !== null) {
@@ -364,6 +368,7 @@
 				geometry = new THREE.BufferGeometry();
 
 				var positions = new Float32Array(PARTICLES * 3);
+				positions[0] = positions[1] = positions[2] = 0
 				var p = 0;
 
 				// for ( var i = 0; i < PARTICLES; i++ ) {
@@ -396,13 +401,13 @@
 				geometry.addAttribute( 'uv', new THREE.BufferAttribute( uvs, 2 ) );
 
 				particleUniforms = {
-					texture: { value: new THREE.TextureLoader().load('texture/earth.jpg') },
+					// texture: { value: new THREE.TextureLoader().load('texture/earth.jpg') },
 					texturePosition: { value: null },
 					textureVelocity: { value: null },
 					cameraConstant: { value: getCameraConstant( camera ) },// 相机常数
 					density: { value: 0.0 }
 				};
-				particleUniforms.texture.value.warpS = particleUniforms.texture.value.warpT = THREE.RepeatWrapping;
+				// particleUniforms.texture.value.warpS = particleUniforms.texture.value.warpT = THREE.RepeatWrapping;
 				// ShaderMaterial
 				var material = new THREE.ShaderMaterial( {
 					uniforms:       particleUniforms,
@@ -550,7 +555,7 @@
 				gpuCompute.compute();
 
 				particleUniforms.texturePosition.value = gpuCompute.getCurrentRenderTarget(positionVariable).texture;
-				particleUniforms.textureVelocity.value = gpuCompute.getCurrentRenderTarget(velocityVariable).texture;
+				// particleUniforms.textureVelocity.value = gpuCompute.getCurrentRenderTarget(velocityVariable).texture;
 
 				renderer.render(scene, camera);
 
