@@ -5,100 +5,123 @@
 	<script src="gp.js"></script>
 	<script src="../js/lib/three/three.js"></script>
 	<script src="../js/lib/three/controls/OrbitControls.js"></script>
-	<script src="../js/lib/three/GPUComputationRenderer.js"></script>
+	<!-- <script src="MyGPComputer.js"></script> -->
 </head>
 <script type="x-shader/x-vertex" id="Vert">
-	varying vec2 vUv;
+	// varying vec2 vUv;
     
 	void main() {
-	    vUv = uv;
+	    // vUv = uv;
 	    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
 	}
 </script>
 <script type="x-shader/x-fragment" id="PosFrag">
-	// #define delta (1.0 / 60.0)
-	#define resolution vec2(1.0, 1.0)
+	#define delta (1.0 / 60.0)
+	// #define resolution vec2(1.0, 1.0)
 	
 	// varying vec2 vUv;
 	uniform sampler2D posTexture;
-	// uniform sampler2D velTexture; 
+	uniform sampler2D velTexture; 
 	
 	void main() {
 		vec2 vUv = gl_FragCoord.xy / resolution.xy;
 		vec4 tmpPos = texture2D( posTexture, vUv );
 		vec3 pos = tmpPos.xyz;
 
-		// vec4 tmpVel = texture2D( velTexture, vUv );
-		// vec3 vel = tmpVel.xyz;
-		// float mass = tmpVel.w;
+		vec4 tmpVel = texture2D( velTexture, vUv );
+		vec3 vel = tmpVel.xyz;
+		float mass = tmpVel.w;
 
-		// if ( mass == 0.0 ) {
-		// 	vel = vec3( 0.0 );
-		// }
+		if ( mass == 0.0 ) {
+			vel = vec3( 0.0 );
+		}
 
 		
-		// pos += 100.0;//vel * delta;
-		pos += vec3(1.0, 0.0, 0.0);
-		pos /= 255.0;
+		pos += vel/* * delta*/;
+		// pos += vec3(1.0, 0.0, 0.0);
+		// pos /= 255.0;
 		gl_FragColor = vec4( pos, 1.0 );
 
 	}
 </script>
 <script type="x-shader/x-fragment" id="VelFrag">
-	// #define nodesNum 73
-	#define MAXLEVEL 5
-	#define MAX_STACK_SIZE 8
-	#define BH_THETA 1.0
+	#include <common>
 	#define G 6.67e-1
+	#define epsilonSq 2000.0
 	#define delta (1.0 / 60.0)
-	// #define c 0// current node index
-	// global varies
-	float scale = 255.0;
 
-	varying vec2 vUv;
-	uniform float resolution;
-	uniform float pNum;
-	uniform float nodeNum;
-	// uniform sampler2D tree;
 	uniform sampler2D posTexture;
 	uniform sampler2D velTexture;
 
-	// uniform sampler2D nodeTexture;
-
 	vec3 pos;
 	vec3 vel;
-	float count = 0.0;
+	// float count = 0.0;
 	float mass;
+	const float width = resolution.x;
+	const float height = resolution.y;
+
+	float computeRadius(float mass, float density) { 
+		return pow((3.0 / (4.0 * PI)) * mass / density, 1.0 / 3.0);
+	}
 
 	void main() {
 
-		// vec4 testResult = testCase();
-
 		// init
-		pos = texture2D(posTexture, vUv).xyz;
-		vec4 vm = texture2D(velTexture, vUv);
+		vec2 uv = gl_FragCoord.xy / resolution.xy;
+		float pid = uv.y * resolution.x + uv.x;
+		pos = texture2D(posTexture, uv).xyz;
+		vec4 vm = texture2D(velTexture, uv);
 		vel = vm.xyz;
-		mass = vm.a;
+		float m = vm.a;
+		float r = computeRadius(m, 0.5);
 		vec3 a;
 
-		// for(float i = 0.0; i < nodesNum; i ++) {
-		// 	vec2 ncoord = vec2((i + 0.5) / nodeNum, vUv.y);
-		// 	vec4 node = texture2D(nodeTexture, ncoord);
-		// 	if(node.a == 0.0)
-		// 		continue;
-		// 	vec3 npos = node.xyz;
-		// 	float nmass = node.a;
-		// 	vec3 dPos = npos - pos; 
-		// 	float distance = length( dPos );
-		// 	float distanceSq = distance * distance;// dot(dPos, dPos);
+		for (float y = 0.0; y < height; y++) {
+			for (float x = 0.0; x < width; x++) {
+				vec2 ncoord = vec2(x + 0.5, y + 0.5) / resolution.xy;
+				vec4 p2 = texture2D(posTexture, ncoord);
+				vec3 pos2 = p2.xyz;
+				float pid2 = ncoord.y * resolution.x + ncoord.x;
+				vec4 vm2 = texture2D(velTexture, ncoord);
+				vec3 vel2 = vm2.xyz;
+				if (pid == pid2)
+					continue;
 
-		// 	a += G * nmass / distanceSq * normalize( dPos );
-		// }
-		// vel += delta * a;
+				float m2 = vm2.a;
+				if (m2 == 0.0)
+					continue;
+
+				vec3 deltaPos = pos2 - pos;
+				float distance = length(deltaPos);
+				if(distance == 0.0)
+					continue;
+
+				float r2 = computeRadius(m2, 0.5);
+				if (distance < r + r2) {
+					if (/*m<m*/pid < pid2) {
+						// 被撞了
+						vel = (vel * m + vel2 * m2) / (m + m2);
+						m += m2;
+						r = computeRadius(m, 0.5);
+					} else {
+						m = 0.0;
+						// r = 0.0;
+						vel = vec3(0.0);
+						break;
+					}
+				}
+				float distanseSquare = distance * distance + epsilonSq;
+				a += G * m2 / distanseSquare * normalize( deltaPos );
+			}
+			if(m == 0.0)
+				break;
+		}
 		
-		gl_FragColor = vm; //vec4(vel, 0.0);
+		vel += delta * a;
+		gl_FragColor = vec4(vel, m);
 		
 	}
+	
 </script>
 <script type="x-shader/x-vertex" id="particleVertexShader">
 
@@ -129,11 +152,11 @@
 		//float radius = pow( ( 3.0 / ( 4.0 * PI ) ) * mass / density, 1.0 / 3.0 );
 		float radius = radiusFromMass(mass);
 		if (mass == 0.0) {
-			gl_PointSize = 100.0;
+			gl_PointSize = 1.0;
 		} else {
-			gl_PointSize = 100.0 * radius * cameraConstant / (- mvPosition.z);
+			gl_PointSize = 1.0 * radius * cameraConstant / (- mvPosition.z);
 		}
-		gl_PointSize = 10.0;
+		// gl_PointSize = 10.0;
 		gl_Position = projectionMatrix * mvPosition;
 	}
 </script>
@@ -150,7 +173,7 @@
 			discard;
 		}
 		// gl_FragColor = texture2D(texture, vUv);
-		gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); //vColor;
+		gl_FragColor = vColor;
 		// if(gl_FragCoord.x<5000.0)
 		// 	gl_FragColor = vec4(1,0,0,1);
 	}
@@ -159,19 +182,14 @@
 <body>
 	<script type="text/javascript">
 
-		var gp = new GP()
-		gp.init()
-		for(var i = 0; i < 2; i ++) {
-			gp.computeP()
-		}
+		var WIDTH = 60, HEIGHT = 60, PARTICLES = WIDTH * HEIGHT
 
-		var PARTICLES = 1, WIDTH = 1, HEIGHT = 1
 		var scene, renderer, camera, particleUniforms, controls
 		scene = new THREE.Scene()
 		renderer = new THREE.WebGLRenderer()
 		renderer.setSize( window.innerWidth, window.innerHeight );
 		document.body.appendChild( renderer.domElement );
-		camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+		camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 100000 );
 		
 
 		camera.position.z = 500;
@@ -179,21 +197,22 @@
 		var light = new THREE.DirectionalLight();
 		// light.position.set(0, 0, 100);
 		scene.add(light);
-		var gpuCompute, positionVariable
-		initComputeRenderer()
-		
+
+		var gp = new GP()
+		gp.init(renderer, WIDTH, HEIGHT)
+		// for(var i = 0; i < 2; i ++) {
+		// 	gp.computeP()
+		// }
+
 		initParticles()
 		animate();
 
 		function animate() {
 			requestAnimationFrame( animate )
 			controls.update()
-			var renderedTx = gp.computeP()
-			particleUniforms.texturePosition.value = renderedTx
-			// renderedTx = gp.computeV()
-			// particleUniforms.textureVelocity.value = renderedTx
+			particleUniforms.texturePosition.value = gp.computeP()
+			particleUniforms.textureVelocity.value = gp.computeV()
 			// gpuCompute.compute();
-			// particleUniforms.texturePosition.value = gpuCompute.getCurrentRenderTarget(positionVariable).texture;
 			renderer.render( scene, camera )
 		}
 
@@ -260,19 +279,7 @@
 
 		}
 
-		function initComputeRenderer() {
-			gpuCompute = new GPUComputationRenderer(1, 1, renderer);
-			var dtPosition = gpuCompute.createTexture();
-			
-			positionVariable = gpuCompute.addVariable( "posTexture", document.getElementById('PosFrag').textContent, dtPosition ); 
-			gpuCompute.setVariableDependencies(positionVariable, [ positionVariable/*, velocityVariable */]);
-			var positionUniforms = positionVariable.material.uniforms;
-
-			var error = gpuCompute.init();
-			if (error !== null) {
-				console.error(error);
-			}
-		}
+		
 	</script>
 </body>
 </html>

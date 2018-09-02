@@ -1,19 +1,18 @@
 
-var pw = 2, ph = 2, pNum = pw * ph
-var nw = 1, nh = 72, nodeNum
-var resolution = 300;
-var debug = false
-var PARTICLES = 1, WIDTH = 1, HEIGHT = 1
+// var pw = 1, ph = 1, pNum = pw * ph
+// var nw = 1, nh = 72, nodeNum
+// var resolution = 300;
+// var debug = false
+// var PARTICLES = 1, WIDTH = 1, HEIGHT = 2
 
-var GP = function(nodeIpt, cbs) {
+var GP = function() {
 
     
-    var material
-    var num = cbs ? cbs.length : 64
-    PARTICLES = pNum
-    WIDTH = pw, HEIGHT = ph
-    var level = 3, nh = (Math.pow(8, level) - 1) / 7
-    nodeNum = nh
+    // var material
+    // var num = cbs ? cbs.length : 64
+    // PARTICLES = pNum
+    // WIDTH = pw, HEIGHT = ph
+    // nodeNum = nh
 
 	
 	
@@ -24,31 +23,32 @@ var GP = function(nodeIpt, cbs) {
 	// readPix()
 
 
-	function render() {
+	// function render() {
 		
-    	this.computeV()
-    	this.computeP()
-	}
+ //    	this.computeV()
+ //    	this.computeP()
+	// }
 }
 
-GP.prototype.init = function(nd, cbs) {
+GP.prototype.init = function(renderer, width, height) {
 	var tScene, tRenderer, tCamera, uniforms
     var plane, vMat, pMat
 
 
-	tRenderer = window.tRenderer || new THREE.WebGLRenderer();
+	tRenderer = renderer || window.tRenderer || new THREE.WebGLRenderer();
 	this.tRenderer = tRenderer
     // renderer.setClearColor(0x000000, 1);
-    tRenderer.setSize(resolution, resolution);
+    // tRenderer.setSize(resolution, resolution);
     // tRenderer.domElement.setAttribute('id', 'renderer');
     // document.body.appendChild(tRenderer.domElement);
-    var width = pw, height = ph
+    WIDTH = width, HEIGHT = height
     
-    tCamera = new THREE.OrthographicCamera(-width/2, width/2, height/2, -height/2, -100, 100);
-    tCamera.position.z = 10;	
+    // tCamera = new THREE.OrthographicCamera(-width/2, width/2, height/2, -height/2, -100, 100);
+    tCamera = new THREE.Camera()
+    tCamera.position.z = 1;	
 	this.tCamera = tCamera
-	var pos = createPostx(cbs)
-	var vel = createVeltx(cbs)
+	var pos = createPostx(/*cbs*/)
+	var vel = createVeltx(/*cbs*/)
 	
  //    var nodeTex = {
 	// 	boundTex: createDataTexture(nd.boundIpt, nw, nh),
@@ -59,45 +59,54 @@ GP.prototype.init = function(nd, cbs) {
     this.tScene = tScene = new THREE.Scene();
     
     this.uniforms = uniforms = {
-        pNum: {type: "f", value: pNum},
+        // pNum: {type: "f", value: pNum},
         // nodeNum: {type: "f", value: tNodeNum},
         posTexture: {"type": "t", "value": pos},
         velTexture: {"type": "t", "value": vel}, 
         // nodeTexture: {type: 't', value: nodeTex}
     };
     this.vMat = generateMat(uniforms, 'Vert', 'VelFrag')
-    this.vMat.defines.nodesNum = pNum.toFixed(1)
+    // this.vMat.defines.nodesNum = pNum.toFixed(1)
     this.pMat = generateMat(uniforms, 'Vert', 'PosFrag')
 
     this.plane = new THREE.Mesh(
-        new THREE.PlaneGeometry(width, height)
+        // new THREE.PlaneGeometry(width, height)
+        new THREE.PlaneBufferGeometry( 2, 2 )
     );
-    this.plane.position.z = -10;
+    // this.plane.position.z = -10;
     tScene.add(this.plane);
 
-    this.pTarget = new THREE.WebGLRenderTarget(pw, ph, {minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat});
-    this.vTarget = new THREE.WebGLRenderTarget(pw, ph, {minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat});
+    this.pti = this.vti = 0
+    this.pTarget = [], this.vTarget = []
+    this.pTarget[0] = createRenderTarget(WIDTH, HEIGHT)
+    this.pTarget[1] = createRenderTarget(WIDTH, HEIGHT)
+    this.vTarget[0] = createRenderTarget(WIDTH, HEIGHT)
+	this.vTarget[1] = createRenderTarget(WIDTH, HEIGHT)
 
-    this.target1 = new THREE.WebGLRenderTarget(pw, ph, {minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat}),
-    this.target2 = new THREE.WebGLRenderTarget(pw, ph, {minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat})
-    this.currentTarget = this.target1
+    // this.currentTarget = this.pTarget[0]
 }
 
 GP.prototype.computeV = function() {
+	// this.currentTarget = this.vTarget[this.vti]
+	this.vti = this.vti == 0 ? 1 : 0
 	this.plane.material = this.vMat
-	this.tRenderer.render(this.tScene, this.tCamera, this.vTarget)
-	this.uniforms.velTexture.value = this.vTarget.texture
+	this.tRenderer.render(this.tScene, this.tCamera, this.vTarget[this.vti])
+	var result = this.uniforms.velTexture.value = this.vTarget[this.vti].texture
+	
 	// this.readPix()
-	return this.vTarget.texture
+	return result
 }
 
 GP.prototype.computeP = function() {
-	this.plane.material = this.pMat
 
-	this.tRenderer.render(this.tScene, this.tCamera, this.currentTarget)
-	var result = this.uniforms.posTexture.value = this.currentTarget.texture
-	this.readPix()
-	this.currentTarget = this.currentTarget == this.target1 ? this.target2 : this.target1
+	// this.currentTarget = this.pTarget[this.pti]
+	this.pti = this.pti == 0 ? 1 : 0
+	this.plane.material = this.pMat
+	this.tRenderer.render(this.tScene, this.tCamera, this.pTarget[this.pti])
+	var result = this.uniforms.posTexture.value = this.pTarget[this.pti].texture
+	
+	
+	// this.readPix()
 	return result
 	
 }
@@ -110,22 +119,23 @@ GP.prototype.readPix = function() {
     gl.readPixels(0, 0, readWidth, readHeight, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
     console.log(buffer)
 }
- 
+
 function generateMat(uniforms, vert, frag) {
     var vertexShader = document.getElementById( vert ).textContent
     // var vertexShader = getPassThroughVertexShader()
     var fragmentShader = document.getElementById( frag ).textContent
     
-    
-    return new THREE.ShaderMaterial({
+    var material = new THREE.ShaderMaterial({
         uniforms: uniforms,
         vertexShader: vertexShader,
         fragmentShader: fragmentShader
     });
+    material.defines.resolution = 'vec2( ' + WIDTH.toFixed( 1 ) + ', ' + HEIGHT.toFixed( 1 ) + " )"
+    return material
 }
 
 function createPostx(cbs) {
-	var l = cbs ? cbs.length : pNum
+	var l = cbs ? cbs.length : WIDTH * HEIGHT
 	var input = new Float32Array(l * 4)
 	for(var i = 0; i < l; i ++) {
 		var cbp = cbs ? cbs[i].position : [100, 0, 0]
@@ -133,22 +143,39 @@ function createPostx(cbs) {
 		input[4*i + 1] = cbp[1]
 		input[4*i + 2] = cbp[2]
 	}
+	var r = 1000, rSq = r * r
+	
+	for(var i = 0; i < l; i++) {
+		var x = (2 * Math.random() - 1 ) * r
+		var y = (2 * Math.random() - 1 ) * Math.sqrt(rSq - x * x)
+		var z = (2 * Math.random() - 1 ) * Math.sqrt(rSq - x * x - y * y)
+		input[4*i] = x
+		input[4*i + 1] = y
+		input[4*i + 2] = z
+	}
 	console.log('位置: ')
-	// console.log(input)
-	return createDataTexture(input, pw, ph)
+	console.log(input)
+	return createDataTexture(input, WIDTH, HEIGHT)
 }
 
 function createVeltx(cbs) {
-	var l = cbs ? cbs.length : pNum
+	var l = cbs ? cbs.length : WIDTH * HEIGHT
 	var input = new Float32Array(l * 4)
+	var maxV = 100, maxM = 100
 	for(var i = 0; i < l; i ++) {
-		var cbv = cbs ? cbs[i].v : [1, 0, 0, 100]
+		var vx = Math.random() * maxV
+		var vy = Math.random() * maxV
+		var vz = Math.random() * maxV
+		var m = Math.random() * maxM
+		var cbv = cbs ? cbs[i].v : [0, 0, 0, m]
 		input[4*i] = cbv[0]
 		input[4*i + 1] = cbv[1]
 		input[4*i + 2] = cbv[2]
 		input[4*i + 3] = cbs ? cbs[i].m : cbv[3]
 	}
-	return createDataTexture(input, pw, ph)
+	console.log('速度: ')
+	console.log(input)
+	return createDataTexture(input, WIDTH, HEIGHT)
 }
 
 function createDataTexture(input, w, h) {
@@ -205,3 +232,28 @@ function getPassThroughVertexShader() {
 			"}\n";
 
 }
+
+function createRenderTarget( sizeXTexture, sizeYTexture, wrapS, wrapT, minFilter, magFilter ) {
+
+	sizeXTexture = sizeXTexture || sizeX;
+	sizeYTexture = sizeYTexture || sizeY;
+
+	wrapS = wrapS || THREE.ClampToEdgeWrapping;
+	wrapT = wrapT || THREE.ClampToEdgeWrapping;
+
+	minFilter = minFilter || THREE.NearestFilter;
+	magFilter = magFilter || THREE.NearestFilter;
+
+	var renderTarget = new THREE.WebGLRenderTarget( sizeXTexture, sizeYTexture, {
+		wrapS: wrapS,
+		wrapT: wrapT,
+		minFilter: minFilter,
+		magFilter: magFilter,
+		// format: THREE.RGBAFormat,
+		type: ( /(iPad|iPhone|iPod)/g.test( navigator.userAgent ) ) ? THREE.HalfFloatType : THREE.FloatType,
+		// stencilBuffer: false
+	} );
+
+	return renderTarget;
+
+};
